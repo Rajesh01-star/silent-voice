@@ -420,7 +420,7 @@ export default function SilentVoiceApp() {
         {/* Left / Center: Camera Feed & Trigger Zone (7 Cols) */}
         <section className="lg:col-span-7 flex flex-col gap-4">
           {/* Camera Viewport Container */}
-          <div className="relative aspect-4/3 w-full rounded-2xl overflow-hidden bg-slate-900/90 border border-slate-800 shadow-2xl flex items-center justify-center">
+          <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden bg-slate-900/90 border border-slate-800 shadow-2xl flex items-center justify-center">
             {cameraActive ? (
               <video
                 ref={videoRef}
