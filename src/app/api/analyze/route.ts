@@ -74,7 +74,7 @@ export async function POST(req: Request) {
       });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey, apiVersion: "v1beta" });
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
@@ -134,3 +134,4 @@ export async function POST(req: Request) {
     );
   }
 }
+

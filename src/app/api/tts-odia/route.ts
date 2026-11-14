@@ -62,14 +62,14 @@ export async function POST(req: Request) {
           },
           body: JSON.stringify({
             inputs: [text],
-            target_language_code: "or-IN",
-            speaker: "meera",
+            target_language_code: "od-IN",
+            speaker: "priya",
             pitch: 0,
             pace: 1.0,
             loudness: 1.5,
             speech_sample_rate: 8000,
             enable_preprocessing: true,
-            model: "bulbul:v2",
+            model: "bulbul:v3",
           }),
         });
 
@@ -103,3 +103,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
