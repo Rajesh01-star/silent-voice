@@ -85,9 +85,22 @@ Match the observed hand/face gesture into one of the 50 standardized intents:
 - wait: Open hand pulsing forward gently -> "Please wait a moment." | "कृपया एक क्षण रुकिए।" | "ଦୟାକରି ଟିକେ ଅପେକ୍ଷା କରନ୍ତୁ।"
 - understand: Index finger touching temple then nodding -> "I understand clearly." | "मैं पूरी तरह समझ गया हूँ।" | "ମୁଁ ସ୍ପଷ୍ଟ ବୁଝିଗଲି।"
 
-Decision Rules:
-- If a person is present and attempting any intentional hand sign or facial expression, pick the closest matching intent from the 50 options with detected: true.
-- Only return detected: false if frame is completely blank/black, or person is completely neutral with hands down.
+Decision Rules & Real-World Tolerance:
+- The user is using a live webcam and may perform signs from Indian Sign Language (ISL), American Sign Language (ASL), or natural physical/facial gestures seen online.
+- BE HIGHLY RESILIENT & PERMISSIVE: Patients and users rarely make textbook-perfect studio signs. If a hand is raised, angled, or making any deliberate posture, MAP IT TO THE CLOSEST INTENT with detected: true.
+- Key common internet & physical cues to recognize immediately:
+  * Hand near mouth, cup shape, thumb tilted to lips, fingers touching mouth -> water ("I need drinking water.")
+  * Hand on stomach, belly pat, or flat palm over torso -> food ("I am hungry, I need food.")
+  * Open palm facing camera, raised arm, waving hand -> help ("Please help / Emergency.")
+  * Eyes squeezed shut, grimacing, holding head/temples -> pain ("I am in severe pain.")
+  * Thumbs up, nodding head, OK circle gesture, peace sign -> yes ("Yes, I agree.")
+  * Index finger wagging, head shake, hand pushing away -> no ("No, I do not want this.")
+  * Palms joined together (Namaste) or hand from chin outward -> thank_you ("Thank you very much.")
+  * Beckoning wave or tapping chest/shoulder -> doctor / nurse
+  * Thumb & pinky to ear (phone sign) -> phone ("I want to make a phone call.")
+  * Pinching fingers to lips (pill swallowing) -> medicine ("I need my medicine / pills.")
+  * Palms pressed to tilted cheek (eyes closed) -> sleep ("I want to sleep, I am tired.")
+- Only set detected: false if the frame is completely empty, completely dark, or person is sitting entirely still with hands completely down and neutral resting expression.
 
 Return strictly valid JSON:
 {
@@ -104,8 +117,8 @@ Return strictly valid JSON:
 // Ultra-fast responsive flash models with standard high-quota tier
 const FAST_MODELS = [
   "gemini-flash-lite-latest",
-  "gemini-3.1-flash-lite",
-  "gemini-flash-latest"
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite"
 ];
 
 export async function POST(req: Request) {

@@ -183,11 +183,10 @@ export default function SilentVoiceApp() {
         const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
         setHistory((prev) => [{ ...data, timestamp: timeStr }, ...prev.slice(0, 4)]);
 
-        // Automatically speak English then Hindi (Odia remains manual on-click)
+        // Automatically speak English only (Hindi & Odia remain manual on-click)
         stopAllSpeech();
-        speakPhrase("all", {
+        speakPhrase("en", {
           textEn: data.en,
-          textHi: data.hi,
           onStart: (lang) => setActiveSpeechLang(lang),
           onEnd: () => setActiveSpeechLang(null),
         });
@@ -244,11 +243,10 @@ export default function SilentVoiceApp() {
     const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     setHistory((prev) => [{ ...demoResult, timestamp: timeStr }, ...prev.slice(0, 4)]);
 
-    // Auto-speaks English then Hindi; Odia remains on explicit click
+    // Auto-speaks English only; Hindi and Odia remain on explicit click
     stopAllSpeech();
-    speakPhrase("all", {
+    speakPhrase("en", {
       textEn: item.en,
-      textHi: item.hi,
       onStart: (lang) => setActiveSpeechLang(lang),
       onEnd: () => setActiveSpeechLang(null),
     });
@@ -546,8 +544,8 @@ export default function SilentVoiceApp() {
                     <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">
                       हिन्दी (Hindi)
                     </span>
-                    <span className="text-[9px] font-mono text-emerald-400/80 bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-800/40">
-                      Auto-Spoken
+                    <span className="text-[9px] font-mono text-amber-400/90 bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-800/40">
+                      Click Button to Speak
                     </span>
                   </div>
                   <p className="text-xl font-normal text-white tracking-tight leading-snug">
