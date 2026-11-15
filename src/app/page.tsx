@@ -191,21 +191,18 @@ export default function SilentVoiceApp() {
     }
   }, [captureFrameBase64, status]);
 
-  // Speak all translations for the current result
+  // Speak result translations (English & Hindi only; Odia speaks strictly on explicit card click)
   const speakCurrentResultAll = async () => {
     stopAllSpeech();
     setStatus("speaking");
-    await speakPhrase(selectedLang, {
+    await speakPhrase("all", {
       textEn: currentResult.en,
       textHi: currentResult.hi,
-      textOr: currentResult.or,
-      phraseKey: currentResult.phraseKey,
       onStart: (lang) => setActiveSpeechLang(lang),
       onEnd: () => {
         setActiveSpeechLang(null);
         setStatus("ready");
       },
-      onOdiaResponse: handleOdiaResponse,
     });
   };
 
@@ -226,18 +223,15 @@ export default function SilentVoiceApp() {
     const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     setHistory((prev) => [{ ...demoResult, timestamp: timeStr }, ...prev.slice(0, 4)]);
 
+    // Speaks English preview on sign demo click
     setStatus("speaking");
-    await speakPhrase(selectedLang, {
+    await speakPhrase("en", {
       textEn: item.en,
-      textHi: item.hi,
-      textOr: item.or,
-      phraseKey: item.key,
       onStart: (lang) => setActiveSpeechLang(lang),
       onEnd: () => {
         setActiveSpeechLang(null);
         setStatus("ready");
       },
-      onOdiaResponse: handleOdiaResponse,
     });
   };
 
@@ -552,7 +546,7 @@ export default function SilentVoiceApp() {
                 type="button"
                 onClick={speakCurrentResultAll}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white text-[11px] font-medium transition-colors cursor-pointer"
-                title="Speak in selected language"
+                title="Speaks English & Hindi (Click Odia below to speak Odia)"
               >
                 <Volume2 className="w-3.5 h-3.5 text-[#c85a32]" />
                 <span>Speak Result</span>

@@ -168,10 +168,7 @@ export async function speakPhrase(
         onStart?.("hi");
         await speakBrowserTts(textHi, "hi-IN");
       }
-      if (textOr) {
-        onStart?.("or");
-        await speakOdia(textOr, phraseKey, onOdiaResponse);
-      }
+      // Odia is intentionally excluded from the 'all' chain to protect Sarvam credits; speaks only on explicit click
     }
     onEnd?.();
   } catch (err) {
