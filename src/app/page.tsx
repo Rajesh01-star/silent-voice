@@ -549,7 +549,7 @@ export default function SilentVoiceApp() {
                 title="Speaks English & Hindi (Click Odia below to speak Odia)"
               >
                 <Volume2 className="w-3.5 h-3.5 text-[#c85a32]" />
-                <span>Speak Result</span>
+                <span>Speak (EN + HI)</span>
               </button>
             </div>
 
