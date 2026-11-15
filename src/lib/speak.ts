@@ -8,6 +8,7 @@ export interface SpeakOptions {
   onStart?: (lang: "en" | "hi" | "or") => void;
   onEnd?: () => void;
   onError?: (err: unknown) => void;
+  onOdiaResponse?: (source: "sarvam" | "fallback", quotaExhausted?: boolean) => void;
 }
 
 let activeAudio: HTMLAudioElement | null = null;
@@ -69,7 +70,11 @@ function speakBrowserTts(text: string, langCode: "en-IN" | "hi-IN"): Promise<voi
 /**
  * Synthesizes Odia speech using Sarvam AI API or offline pre-recorded fallbacks
  */
-async function speakOdia(text: string, phraseKey?: string): Promise<void> {
+async function speakOdia(
+  text: string,
+  phraseKey?: string,
+  onOdiaResponse?: (source: "sarvam" | "fallback", quotaExhausted?: boolean) => void
+): Promise<void> {
   return new Promise(async (resolve) => {
     const playAudioUrl = (url: string) => {
       stopAllSpeech();
@@ -113,6 +118,8 @@ async function speakOdia(text: string, phraseKey?: string): Promise<void> {
       }
 
       const data = await res.json();
+      onOdiaResponse?.(data.source === "sarvam" ? "sarvam" : "fallback", data.quotaExhausted);
+
       if (data.audioBase64) {
         const audioDataUri = `data:${data.mimeType || "audio/wav"};base64,${data.audioBase64}`;
         playAudioUrl(audioDataUri);
@@ -124,6 +131,7 @@ async function speakOdia(text: string, phraseKey?: string): Promise<void> {
       }
     } catch (err) {
       console.warn("Error calling /api/tts-odia, utilizing offline static sound fallback:", err);
+      onOdiaResponse?.("fallback", false);
       const fallbackUrl = phraseKey ? `/audio/or/${phraseKey}.mp3` : "/audio/or/help.mp3";
       playAudioUrl(fallbackUrl);
     }
@@ -137,7 +145,7 @@ export async function speakPhrase(
   lang: SupportedLanguage,
   options: SpeakOptions
 ): Promise<void> {
-  const { textEn, textHi, textOr, phraseKey, onStart, onEnd, onError } = options;
+  const { textEn, textHi, textOr, phraseKey, onStart, onEnd, onError, onOdiaResponse } = options;
 
   stopAllSpeech();
 
@@ -150,7 +158,7 @@ export async function speakPhrase(
       await speakBrowserTts(textHi, "hi-IN");
     } else if (lang === "or" && textOr) {
       onStart?.("or");
-      await speakOdia(textOr, phraseKey);
+      await speakOdia(textOr, phraseKey, onOdiaResponse);
     } else if (lang === "all") {
       if (textEn) {
         onStart?.("en");
@@ -162,7 +170,7 @@ export async function speakPhrase(
       }
       if (textOr) {
         onStart?.("or");
-        await speakOdia(textOr, phraseKey);
+        await speakOdia(textOr, phraseKey, onOdiaResponse);
       }
     }
     onEnd?.();

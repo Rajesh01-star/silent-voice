@@ -25,6 +25,59 @@ export default function SilentVoiceApp() {
   const [status, setStatus] = useState<"ready" | "capturing" | "analyzing" | "speaking">("ready");
   const [activeSpeechLang, setActiveSpeechLang] = useState<"en" | "hi" | "or" | null>(null);
   const [selectedDemoKey, setSelectedDemoKey] = useState<string | null>(null);
+  const [sarvamCredits, setSarvamCredits] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("sarvam_credits_remaining");
+      if (saved !== null) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed)) return parsed;
+      }
+    }
+    return 500;
+  });
+
+  const [quotaExhausted, setQuotaExhausted] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("sarvam_credits_remaining");
+      if (saved !== null) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed)) return parsed <= 0;
+      }
+    }
+    return false;
+  });
+
+  const handleOdiaResponse = useCallback((source: "sarvam" | "fallback", exhausted?: boolean) => {
+    if (exhausted) {
+      setQuotaExhausted(true);
+      setSarvamCredits(0);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("sarvam_credits_remaining", "0");
+      }
+    } else if (source === "sarvam") {
+      setSarvamCredits((prev) => {
+        const next = Math.max(0, prev - 1);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("sarvam_credits_remaining", String(next));
+        }
+        return next;
+      });
+    }
+  }, []);
+
+  const setManualCredits = () => {
+    const input = window.prompt("Enter your remaining Sarvam AI tries/credits from dashboard:", String(sarvamCredits));
+    if (input !== null) {
+      const parsed = parseInt(input.trim(), 10);
+      if (!isNaN(parsed) && parsed >= 0) {
+        setSarvamCredits(parsed);
+        setQuotaExhausted(parsed === 0);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("sarvam_credits_remaining", String(parsed));
+        }
+      }
+    }
+  };
 
   const [currentResult, setCurrentResult] = useState<AnalyzeResult>({
     detected: true,
@@ -152,6 +205,7 @@ export default function SilentVoiceApp() {
         setActiveSpeechLang(null);
         setStatus("ready");
       },
+      onOdiaResponse: handleOdiaResponse,
     });
   };
 
@@ -183,6 +237,7 @@ export default function SilentVoiceApp() {
         setActiveSpeechLang(null);
         setStatus("ready");
       },
+      onOdiaResponse: handleOdiaResponse,
     });
   };
 
@@ -201,6 +256,7 @@ export default function SilentVoiceApp() {
         setActiveSpeechLang(null);
         setStatus("ready");
       },
+      onOdiaResponse: handleOdiaResponse,
     });
   };
 
@@ -575,6 +631,24 @@ export default function SilentVoiceApp() {
                 <div>
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">ଓଡ଼ିଆ</span>
+                    {quotaExhausted ? (
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-rose-950/70 border border-rose-800 text-rose-300">
+                        0 tries left · Fallback Audio
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setManualCredits();
+                        }}
+                        title="Click to calibrate remaining tries with your Sarvam dashboard"
+                        className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-emerald-400 inline-flex items-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        <span>{sarvamCredits} tries left</span>
+                      </button>
+                    )}
                     <span className="text-[9px] text-zinc-600 group-hover:text-zinc-400 transition-colors">Click to speak</span>
                   </div>
                   <p className="text-base text-zinc-100 font-normal leading-relaxed">{currentResult.or}</p>

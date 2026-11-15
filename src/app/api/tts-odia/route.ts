@@ -80,11 +80,20 @@ export async function POST(req: Request) {
               audioBase64: data.audios[0],
               mimeType: "audio/wav",
               source: "sarvam",
+              quotaExhausted: false,
             });
           }
         } else {
           const errorText = await response.text();
           console.warn("Sarvam AI TTS API responded with error:", response.status, errorText);
+          const isQuota = response.status === 402 || errorText.toLowerCase().includes("credit") || errorText.toLowerCase().includes("quota");
+          const fallbackUrl = getFallbackFile(text, phraseKey);
+          return NextResponse.json({
+            fallbackUrl,
+            source: "fallback",
+            quotaExhausted: isQuota,
+            errorDetail: isQuota ? "INSUFFICIENT_CREDITS" : "API_ERROR",
+          });
         }
       } catch (sarvamErr) {
         console.warn("Sarvam AI TTS request failed, falling back to static audio:", sarvamErr);
