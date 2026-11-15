@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 
-export const maxDuration = 60;
+export const maxDuration = 15;
 
 interface AnalyzeRequestBody {
-  image?: string; // base64 data url or raw base64 string
+  image?: string;
 }
 
 export interface AnalyzeResult {
@@ -18,50 +18,51 @@ export interface AnalyzeResult {
 }
 
 const SYSTEM_INSTRUCTION = `
-You are the computer vision and communication engine of "Silent Voice", an assistive technology system designed for speech-impaired and paralyzed individuals.
-Your task is to analyze webcam frames capturing patient hand gestures, sign language signs (ASL/ISL/intuitive gestures), closed eyes/blinks, or facial expressions, and translate them into vital daily and emergency needs.
+You are the computer vision assistant for "Silent Voice", an assistive communication system for speech-impaired individuals (similar to Google Project Activate).
+The user is facing the webcam and intentionally performing a physical sign, hand gesture, eye closure, or facial expression to communicate an urgent need.
 
-Be generous, flexible, and context-aware. Recognize these intents even if the angle, lighting, or hand form is slightly imperfect:
+Look closely at the person's hands, fingers, and face. Match what you see to the closest intended category:
 
-1. Water / Thirst (phraseKey: "water"):
-   - Hand near mouth / cup shape / thumb pointing to mouth / finger to lips / drinking motion.
+1. Water / Thirst ("water"):
+   - Visual Cues: Hand/fingers brought to or near mouth/chin, mimicking a cup/bottle, pointing to lips/throat.
    - English: "I need water.", Hindi: "मुझे पानी चाहिए।", Odia: "ମୋତେ ପାଣି ଦରକାର।"
 
-2. Food / Hunger (phraseKey: "food"):
-   - Hand on stomach / belly, fingers touching mouth in eating motion, or flat hand over chest/abdomen.
+2. Food / Hunger ("food"):
+   - Visual Cues: Hand placed over stomach/belly, or fingertips touching mouth in eating motion.
    - English: "I am hungry.", Hindi: "मुझे भूख लगी है।", Odia: "ମୋତେ ଭୋକ ଲାଗୁଛି।"
 
-3. Pain / Distress (phraseKey: "pain"):
-   - Eyes tightly closed / squinting / grimacing / hand on forehead / head holding.
+3. Pain / Distress ("pain"):
+   - Visual Cues: Both eyes squeezed shut tightly, grimacing/frowning, or hand clutching forehead/head/chest.
    - English: "I am in pain.", Hindi: "मुझे दर्द हो रहा है।", Odia: "ମୋତେ କଷ୍ଟ ହେଉଛି।"
 
-4. Emergency / Help / Stop (phraseKey: "help"):
-   - Raised open palm / waving hand / stop hand facing camera / urgent spread fingers.
+4. Emergency / Help ("help"):
+   - Visual Cues: Open palm raised facing camera (stop sign), waving hand, spread fingers upright.
    - English: "Please help / Emergency.", Hindi: "कृपया मदद करें।", Odia: "ଦୟାକରି ସାହାଯ୍ୟ କରନ୍ତୁ।"
 
-5. Affirmation / Agreement (phraseKey: "yes"):
-   - Thumbs up / peace sign / clear head nod forward / OK sign (pinch thumb and index).
+5. Yes / Affirmation ("yes"):
+   - Visual Cues: Thumbs up, peace/V sign, clear forward head nod, or OK sign.
    - English: "Yes.", Hindi: "हाँ।", Odia: "ହଁ।"
 
-6. Negation / Refusal (phraseKey: "no"):
-   - Index finger raised / finger wagging / palm pushing away / head shake.
+6. No / Negative ("no"):
+   - Visual Cues: Single index finger pointing up, finger wagging, or palm pushing outward.
    - English: "No.", Hindi: "नहीं।", Odia: "ନା।"
 
-7. Gratitude / Respect (phraseKey: "thank_you"):
-   - Both hands folded (Namaste) / hand over heart / slight bow.
+7. Thank You ("thank_you"):
+   - Visual Cues: Hands joined together in front of chest (Namaste / prayer posture) or hand over heart.
    - English: "Thank you.", Hindi: "धन्यवाद।", Odia: "ଧନ୍ୟବାଦ।"
 
-8. Doctor / Medical Assistance (phraseKey: "doctor"):
-   - Pointing outwards / beckoning wave / finger pointing toward door or arm.
+8. Call Doctor ("doctor"):
+   - Visual Cues: Beckoning hand gesture toward camera, pointing index finger outward/toward door.
    - English: "Call the doctor.", Hindi: "डॉक्टर को बुलाइए।", Odia: "ଡାକ୍ତରଙ୍କୁ ଡାକନ୍ତୁ।"
 
-If a person is visible and attempting an intentional sign or expression, do your best to classify their intent into the closest category above.
-Only set detected: false with phraseKey: "none" if the frame is completely empty, pitch dark, completely blurry, or the person is resting completely neutrally with hands completely down.
+Decision Rules:
+- If a person is present and showing any hand near face/body or closing eyes, classify into the closest intent above with detected: true.
+- Only return detected: false if the frame is completely empty, completely black/blurry, or the person is resting completely neutrally with arms resting down.
 
-Respond strictly with valid JSON:
+Return strictly valid JSON:
 {
   "detected": boolean,
-  "cue": string (concise description of what hand gesture or facial cue you observed),
+  "cue": string,
   "en": string,
   "hi": string,
   "or": string,
@@ -70,10 +71,11 @@ Respond strictly with valid JSON:
 }
 `;
 
-const CANDIDATE_MODELS = [
-  "gemini-3.8-flash",
-  "gemini-flash-latest",
-  "gemini-3.5-flash",
+// Ultra-fast responsive flash models with standard high-quota tier
+const FAST_MODELS = [
+  "gemini-flash-lite-latest",
+  "gemini-3.1-flash-lite",
+  "gemini-flash-latest"
 ];
 
 export async function POST(req: Request) {
@@ -92,25 +94,22 @@ export async function POST(req: Request) {
     if (!isKeyConfigured) {
       return NextResponse.json({
         detected: false,
-        cue: "GEMINI_API_KEY is not configured",
-        en: "Please provide a valid GEMINI_API_KEY in .env.local.",
+        cue: "GEMINI_API_KEY missing",
+        en: "Configure GEMINI_API_KEY in .env.local to enable real-time detection.",
         hi: "कृपया .env.local में वैध GEMINI_API_KEY दर्ज करें।",
         or: "ଦୟାକରି .env.local ରେ ବୈଧ GEMINI_API_KEY ଯୋଡନ୍ତୁ।",
         phraseKey: "none",
         confidence: 0,
-        warning: "API_KEY_MISSING",
       });
     }
 
     const ai = new GoogleGenAI({ apiKey, apiVersion: "v1beta" });
-
     let responseText = "";
-    let lastError: Error | null = null;
 
-    // Model fallback chain: try gemini-3.8-flash -> gemini-flash-latest -> gemini-3.5-flash
-    for (const modelName of CANDIDATE_MODELS) {
+    // Fast execution with 4.5s timeout per model
+    for (const modelName of FAST_MODELS) {
       try {
-        const response = await ai.models.generateContent({
+        const generatePromise = ai.models.generateContent({
           model: modelName,
           contents: [
             {
@@ -123,7 +122,7 @@ export async function POST(req: Request) {
                   },
                 },
                 {
-                  text: "Examine the webcam frame. Identify any hand gesture, sign language sign, eye closure, or facial cue, and return the structured JSON translation.",
+                  text: "Analyze the patient's gesture or facial cue and return structured JSON translation.",
                 },
               ],
             },
@@ -131,27 +130,31 @@ export async function POST(req: Request) {
           config: {
             systemInstruction: SYSTEM_INSTRUCTION,
             responseMimeType: "application/json",
+            temperature: 0.1,
           },
         });
 
-        if (response.text) {
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("MODEL_TIMEOUT")), 4500)
+        );
+
+        const response = await Promise.race([generatePromise, timeoutPromise]);
+        if (response && response.text) {
           responseText = response.text.trim();
           break;
         }
-      } catch (err: unknown) {
-        lastError = err instanceof Error ? err : new Error(String(err));
-        console.warn(`Model ${modelName} call failed, trying next candidate:`, lastError.message);
+      } catch {
+        console.warn(`Model ${modelName} did not respond in time, falling back...`);
       }
     }
 
     if (!responseText) {
-      console.error("All vision model candidates failed. Last error:", lastError?.message);
       return NextResponse.json({
         detected: false,
-        cue: "Recognition service busy. Please try again in a few seconds.",
-        en: "Recognition service busy. Please try again.",
-        hi: "सेवा व्यस्त है। कृपया पुनः प्रयास करें।",
-        or: "ସେବା ବ୍ୟସ୍ତ ଅଛି। ଦୟାକରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।",
+        cue: "Could not classify gesture. Please hold hand clearly facing camera.",
+        en: "No clear gesture recognized. Please hold sign steady.",
+        hi: "स्पष्ट इशारा नहीं दिखा। कृपया हाथ कैमरे के सामने रखें।",
+        or: "ସ୍ପଷ୍ଟ ସଙ୍କେତ ମିଳିଲା ନାହିଁ। ଦୟାକରି ହାତ ସ୍ଥିର ରଖନ୍ତୁ।",
         phraseKey: "none",
         confidence: 0,
       });
@@ -161,23 +164,23 @@ export async function POST(req: Request) {
     try {
       parsed = JSON.parse(responseText);
     } catch {
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsed = JSON.parse(jsonMatch[0]);
+      const match = responseText.match(/\{[\s\S]*\}/);
+      if (match) {
+        parsed = JSON.parse(match[0]);
       } else {
-        throw new Error("Invalid JSON response from vision model");
+        throw new Error("Invalid model JSON format");
       }
     }
 
     return NextResponse.json(parsed);
   } catch (err: unknown) {
-    console.error("Error analyzing frame:", err);
+    console.error("Frame analysis error:", err);
     return NextResponse.json({
       detected: false,
-      cue: "Unable to process frame. Please hold gesture clearly in camera.",
-      en: "Unable to detect gesture. Please hold your hand clearly facing the camera.",
-      hi: "इशारा समझ नहीं आया। कृपया हाथ कैमरे के सामने स्पष्ट रखें।",
-      or: "ସଙ୍କେତ ଚିହ୍ନଟ ହୋଇପାରିଲା ନାହିଁ। ଦୟାକରି ହାତ ସ୍ପଷ୍ଟ ଦେଖାନ୍ତୁ।",
+      cue: "Analysis error. Please try again.",
+      en: "Analysis error. Please try again.",
+      hi: "विश्लेषण त्रुटि। पुनः प्रयास करें।",
+      or: "ବିଶ୍ଳେଷଣ ତ୍ରୁଟି। ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।",
       phraseKey: "none",
       confidence: 0,
     });

@@ -13,18 +13,18 @@ import {
   FileText,
   ExternalLink,
 } from "lucide-react";
-import { speakPhrase, stopAllSpeech, SupportedLanguage } from "@/lib/speak";
+import { speakPhrase, stopAllSpeech } from "@/lib/speak";
 import { AnalyzeResult } from "@/app/api/analyze/route";
 import { GESTURES, GestureDefinition } from "@/lib/gestures";
 
 export default function SilentVoiceApp() {
-  const [selectedLang, setSelectedLang] = useState<SupportedLanguage>("all");
   const [mode, setMode] = useState<"manual" | "auto">("manual");
   const [cameraActive, setCameraActive] = useState<boolean>(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [status, setStatus] = useState<"ready" | "capturing" | "analyzing" | "speaking">("ready");
+  const [status, setStatus] = useState<"ready" | "scanning" | "detected">("ready");
   const [activeSpeechLang, setActiveSpeechLang] = useState<"en" | "hi" | "or" | null>(null);
-  const [selectedDemoKey, setSelectedDemoKey] = useState<string | null>(null);
+  const [selectedLegendKey, setSelectedLegendKey] = useState<string | null>(null);
+
   const [sarvamCredits, setSarvamCredits] = useState<number>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("sarvam_credits_remaining");
@@ -46,6 +46,23 @@ export default function SilentVoiceApp() {
     }
     return false;
   });
+
+  const [currentResult, setCurrentResult] = useState<AnalyzeResult>({
+    detected: true,
+    cue: "Ready for gesture",
+    en: "Ready to assist. Perform a gesture or blink.",
+    hi: "मदद के लिए तैयार। कोई संकेत या इशारा करें।",
+    or: "ସାହାଯ୍ୟ ପାଇଁ ପ୍ରସ୍ତୁତ। କୌଣସି ସଙ୍କେତ କରନ୍ତୁ।",
+    phraseKey: "help",
+    confidence: 1.0,
+  });
+
+  const [history, setHistory] = useState<Array<AnalyzeResult & { timestamp: string }>>([]);
+
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const autoScanTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const handleOdiaResponse = useCallback((source: "sarvam" | "fallback", exhausted?: boolean) => {
     if (exhausted) {
@@ -78,23 +95,6 @@ export default function SilentVoiceApp() {
       }
     }
   };
-
-  const [currentResult, setCurrentResult] = useState<AnalyzeResult>({
-    detected: true,
-    cue: "Ready for gesture",
-    en: "Ready to assist. Perform a gesture or blink.",
-    hi: "मदद के लिए तैयार। कोई संकेत या इशारा करें।",
-    or: "ସାହାଯ୍ୟ ପାଇଁ ପ୍ରସ୍ତୁତ। କୌଣସି ସଙ୍କେତ କରନ୍ତୁ।",
-    phraseKey: "help",
-    confidence: 1.0,
-  });
-
-  const [history, setHistory] = useState<Array<AnalyzeResult & { timestamp: string }>>([]);
-
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const autoScanTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
 
   // Initialize camera
   const startCamera = useCallback(async () => {
@@ -157,17 +157,15 @@ export default function SilentVoiceApp() {
 
   // Execute frame analysis
   const analyzeCurrentFrame = useCallback(async () => {
-    if (status === "analyzing" || status === "capturing") return;
+    if (status === "scanning") return;
 
-    setStatus("capturing");
+    setStatus("scanning");
     const frameBase64 = captureFrameBase64();
 
     if (!frameBase64) {
       setStatus("ready");
       return;
     }
-
-    setStatus("analyzing");
 
     try {
       const res = await fetch("/api/analyze", {
@@ -178,38 +176,51 @@ export default function SilentVoiceApp() {
 
       const data: AnalyzeResult = await res.json();
       setCurrentResult(data);
-      setSelectedDemoKey(null);
+      setSelectedLegendKey(null);
 
       if (data.detected) {
+        setStatus("detected");
         const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
         setHistory((prev) => [{ ...data, timestamp: timeStr }, ...prev.slice(0, 4)]);
+      } else {
+        setStatus("ready");
       }
-      setStatus("ready");
     } catch (err) {
       console.error("Frame analysis error:", err);
       setStatus("ready");
     }
   }, [captureFrameBase64, status]);
 
-  // Speak result translations (English & Hindi only; Odia speaks strictly on explicit card click)
+  // Speak results (English & Hindi; Odia on explicit click)
   const speakCurrentResultAll = async () => {
     stopAllSpeech();
-    setStatus("speaking");
     await speakPhrase("all", {
       textEn: currentResult.en,
       textHi: currentResult.hi,
       onStart: (lang) => setActiveSpeechLang(lang),
-      onEnd: () => {
-        setActiveSpeechLang(null);
-        setStatus("ready");
-      },
+      onEnd: () => setActiveSpeechLang(null),
     });
   };
 
-  // Quick test demo trigger
-  const triggerDemoPhrase = async (item: GestureDefinition) => {
+  // Replay a specific card's language
+  const replaySingleAudio = async (lang: "en" | "hi" | "or") => {
     stopAllSpeech();
-    setSelectedDemoKey(item.key);
+    setActiveSpeechLang(lang);
+    await speakPhrase(lang, {
+      textEn: currentResult.en,
+      textHi: currentResult.hi,
+      textOr: currentResult.or,
+      phraseKey: currentResult.phraseKey,
+      onStart: (l) => setActiveSpeechLang(l),
+      onEnd: () => setActiveSpeechLang(null),
+      onOdiaResponse: handleOdiaResponse,
+    });
+  };
+
+  // Quick test from bottom legend strip
+  const triggerLegendItem = async (item: GestureDefinition) => {
+    stopAllSpeech();
+    setSelectedLegendKey(item.key);
     const demoResult: AnalyzeResult = {
       detected: true,
       cue: `${item.name} (${item.cue})`,
@@ -220,37 +231,14 @@ export default function SilentVoiceApp() {
       confidence: 1.0,
     };
     setCurrentResult(demoResult);
+    setStatus("detected");
     const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     setHistory((prev) => [{ ...demoResult, timestamp: timeStr }, ...prev.slice(0, 4)]);
 
-    // Speaks English preview on sign demo click
-    setStatus("speaking");
     await speakPhrase("en", {
       textEn: item.en,
       onStart: (lang) => setActiveSpeechLang(lang),
-      onEnd: () => {
-        setActiveSpeechLang(null);
-        setStatus("ready");
-      },
-    });
-  };
-
-  // Replay a specific card's language
-  const replaySingleAudio = async (lang: "en" | "hi" | "or") => {
-    stopAllSpeech();
-    setStatus("speaking");
-    setActiveSpeechLang(lang);
-    await speakPhrase(lang, {
-      textEn: currentResult.en,
-      textHi: currentResult.hi,
-      textOr: currentResult.or,
-      phraseKey: currentResult.phraseKey,
-      onStart: (l) => setActiveSpeechLang(l),
-      onEnd: () => {
-        setActiveSpeechLang(null);
-        setStatus("ready");
-      },
-      onOdiaResponse: handleOdiaResponse,
+      onEnd: () => setActiveSpeechLang(null),
     });
   };
 
@@ -258,10 +246,10 @@ export default function SilentVoiceApp() {
   useEffect(() => {
     if (mode === "auto" && cameraActive) {
       autoScanTimerRef.current = setInterval(() => {
-        if (status === "ready") {
+        if (status === "ready" || status === "detected") {
           analyzeCurrentFrame();
         }
-      }, 3500);
+      }, 4000);
     } else {
       if (autoScanTimerRef.current) {
         clearInterval(autoScanTimerRef.current);
@@ -280,7 +268,7 @@ export default function SilentVoiceApp() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === "Space" && e.target === document.body) {
         e.preventDefault();
-        if (cameraActive && status === "ready") {
+        if (cameraActive && status !== "scanning") {
           analyzeCurrentFrame();
         }
       }
@@ -302,34 +290,15 @@ export default function SilentVoiceApp() {
   return (
     <div className="flex flex-col min-h-screen bg-[#111113] text-zinc-100 selection:bg-[#c85a32] selection:text-white">
       {/* Top Header */}
-      <header className="border-b border-zinc-800/80 px-6 py-3.5">
+      <header className="border-b border-zinc-800/80 px-6 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          {/* Identity */}
           <div className="flex items-center gap-3">
             <span className="text-sm font-semibold tracking-tight text-zinc-100">Silent Voice</span>
             <span className="text-zinc-600">/</span>
-            <span className="text-xs text-zinc-400 font-normal">Assistive Speech Translation</span>
-            <div className="flex items-center gap-1.5 ml-2">
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                  status === "analyzing"
-                    ? "bg-amber-400 animate-pulse"
-                    : status === "speaking"
-                    ? "bg-[#c85a32] animate-pulse"
-                    : cameraActive
-                    ? "bg-emerald-400"
-                    : "bg-zinc-600"
-                }`}
-              />
-              <span className="text-[11px] text-zinc-400 capitalize">
-                {status === "analyzing" ? "analyzing" : status === "speaking" ? "speaking" : cameraActive ? "live" : "offline"}
-              </span>
-            </div>
+            <span className="text-xs text-zinc-400 font-normal">AI Gesture & Speech Assistive Translator</span>
           </div>
 
-          {/* Controls: Segmented Groups & Chit Sheet Link */}
-          <div className="flex items-center gap-3.5">
-            {/* Link to /sheet Chit */}
+          <div className="flex items-center gap-3">
             <Link
               href="/sheet"
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-xs text-zinc-300 hover:text-white transition-colors"
@@ -339,7 +308,6 @@ export default function SilentVoiceApp() {
               <ExternalLink className="w-2.5 h-2.5 opacity-60" />
             </Link>
 
-            {/* Mode Switcher */}
             <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-md p-0.5 text-xs">
               <button
                 type="button"
@@ -348,7 +316,7 @@ export default function SilentVoiceApp() {
                   mode === "manual" ? "bg-zinc-800 text-zinc-100 font-medium" : "text-zinc-400 hover:text-zinc-200"
                 }`}
               >
-                Manual
+                Manual [Space]
               </button>
               <button
                 type="button"
@@ -357,36 +325,10 @@ export default function SilentVoiceApp() {
                   mode === "auto" ? "bg-zinc-800 text-zinc-100 font-medium" : "text-zinc-400 hover:text-zinc-200"
                 }`}
               >
-                Auto (3s)
+                Auto (4s)
               </button>
             </div>
 
-            {/* Language Selector */}
-            <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-md p-0.5 text-xs">
-              {(
-                [
-                  { id: "all", label: "All" },
-                  { id: "en", label: "EN" },
-                  { id: "hi", label: "HI" },
-                  { id: "or", label: "OR" },
-                ] as const
-              ).map((lang) => (
-                <button
-                  key={lang.id}
-                  type="button"
-                  onClick={() => setSelectedLang(lang.id)}
-                  className={`px-2 py-1 rounded text-xs transition-colors ${
-                    selectedLang === lang.id
-                      ? "bg-[#c85a32] text-white font-medium"
-                      : "text-zinc-400 hover:text-zinc-200"
-                  }`}
-                >
-                  {lang.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Stop Speech */}
             <button
               type="button"
               onClick={stopAllSpeech}
@@ -399,14 +341,12 @@ export default function SilentVoiceApp() {
         </div>
       </header>
 
-      {/* Main Workspace */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Section: Camera Viewport + Sign Demos Beside It (7 Cols) */}
-        <section className="lg:col-span-7 flex flex-col gap-4">
-          {/* Dual Frame: Camera Feed on Left + Sign Demos Rail on Right */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
-            {/* Camera Viewport (8 cols) */}
-            <div className="md:col-span-8 relative aspect-[4/3] w-full rounded-xl overflow-hidden bg-zinc-900/60 border border-zinc-800/80 flex items-center justify-center">
+      {/* Main Split-Screen Workspace */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-6 flex flex-col gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Left Column: Mirrored Webcam Feed with Status Indicator (6 Cols) */}
+          <section className="lg:col-span-6 flex flex-col gap-3">
+            <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden bg-zinc-900/80 border border-zinc-800 flex items-center justify-center shadow-lg">
               {cameraActive ? (
                 <video
                   ref={videoRef}
@@ -433,198 +373,192 @@ export default function SilentVoiceApp() {
 
               <canvas ref={canvasRef} className="hidden" />
 
-              {/* Quiet Corner Reticle */}
+              {/* Status Pill Badge inside Viewfinder */}
+              <div className="absolute top-4 left-4 z-10">
+                <div
+                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border text-xs font-medium transition-all ${
+                    status === "scanning"
+                      ? "bg-amber-950/80 border-amber-500/60 text-amber-300 animate-pulse"
+                      : status === "detected"
+                      ? "bg-emerald-950/80 border-emerald-500/60 text-emerald-300"
+                      : "bg-zinc-950/80 border-zinc-700/60 text-zinc-300"
+                  }`}
+                >
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      status === "scanning"
+                        ? "bg-amber-400 animate-ping"
+                        : status === "detected"
+                        ? "bg-emerald-400"
+                        : "bg-zinc-400"
+                    }`}
+                  />
+                  <span>
+                    {status === "scanning"
+                      ? "Scanning Gesture..."
+                      : status === "detected"
+                      ? "Gesture Detected"
+                      : "Ready for Gesture"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Camera Corner Bounding Frame */}
               {cameraActive && (
-                <div className="absolute inset-4 pointer-events-none flex flex-col justify-between">
+                <div className="absolute inset-5 pointer-events-none flex flex-col justify-between">
                   <div className="flex justify-between">
-                    <div className="w-3 h-3 border-t border-l border-zinc-500/40" />
-                    <div className="w-3 h-3 border-t border-r border-zinc-500/40" />
+                    <div className="w-5 h-5 border-t-2 border-l-2 border-white/30 rounded-tl-lg" />
+                    <div className="w-5 h-5 border-t-2 border-r-2 border-white/30 rounded-tr-lg" />
                   </div>
                   <div className="flex justify-between">
-                    <div className="w-3 h-3 border-b border-l border-zinc-500/40" />
-                    <div className="w-3 h-3 border-b border-r border-zinc-500/40" />
+                    <div className="w-5 h-5 border-b-2 border-l-2 border-white/30 rounded-bl-lg" />
+                    <div className="w-5 h-5 border-b-2 border-r-2 border-white/30 rounded-br-lg" />
                   </div>
                 </div>
               )}
 
-              {/* Camera Switcher Icon */}
+              {/* Reset Stream Icon */}
               {cameraActive && (
                 <button
                   type="button"
                   onClick={stopCamera}
                   title="Pause camera"
-                  className="absolute top-3 right-3 p-1.5 rounded bg-zinc-950/60 border border-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
+                  className="absolute top-4 right-4 p-2 rounded-lg bg-zinc-950/70 border border-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors z-10"
                 >
-                  <Camera className="w-3.5 h-3.5" />
+                  <Camera className="w-4 h-4" />
                 </button>
               )}
             </div>
 
-            {/* Beside the Camera: Sign Demos Quick Guide (4 cols) */}
-            <div className="md:col-span-4 flex flex-col gap-1.5 max-h-[340px] overflow-y-auto pr-1">
-              <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-zinc-400 pb-1.5 border-b border-zinc-800">
-                <span>Signs To Make</span>
-                <Link href="/sheet" className="text-[#c85a32] hover:underline flex items-center gap-0.5">
-                  Chit ↗
-                </Link>
-              </div>
+            {/* Action Trigger Bar */}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                disabled={!cameraActive || status === "scanning"}
+                onClick={analyzeCurrentFrame}
+                className={`flex-1 py-3.5 px-5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2.5 transition-all shadow-md ${
+                  status === "scanning"
+                    ? "bg-zinc-800 text-zinc-400 cursor-wait border border-zinc-700"
+                    : "bg-[#c85a32] hover:bg-[#b44f2b] text-white active:scale-[0.99] cursor-pointer"
+                }`}
+              >
+                {status === "scanning" ? (
+                  <>
+                    <Activity className="w-4 h-4 animate-spin" />
+                    Scanning & Interpreting Gesture...
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4 fill-current" />
+                    Capture & Translate Gesture <span className="opacity-60 font-mono text-[11px] ml-1">[Space]</span>
+                  </>
+                )}
+              </button>
 
-              {GESTURES.map((item) => {
-                const Icon = item.icon;
-                const isSelected = selectedDemoKey === item.key;
-                return (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => triggerDemoPhrase(item)}
-                    className={`p-2 rounded-lg border text-left transition-all flex items-center gap-2.5 cursor-pointer ${
-                      isSelected
-                        ? "border-[#c85a32] bg-[#c85a32]/10"
-                        : "border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-800/60 hover:border-zinc-700"
-                    }`}
-                  >
-                    <div className={`p-1 rounded shrink-0 ${isSelected ? "text-[#c85a32]" : "text-zinc-400"}`}>
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    <div className="truncate flex-1">
-                      <span className="text-xs font-medium text-zinc-200 block truncate">{item.name}</span>
-                      <span className="text-[10px] text-zinc-500 block truncate">{item.cue}</span>
-                    </div>
-                    <Volume2 className="w-3 h-3 text-zinc-600 hover:text-[#c85a32] shrink-0" />
-                  </button>
-                );
-              })}
+              <button
+                type="button"
+                onClick={startCamera}
+                title="Restart camera stream"
+                className="p-3.5 rounded-xl border border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
             </div>
-          </div>
+          </section>
 
-          {/* Trigger Action */}
-          <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              disabled={!cameraActive || status === "analyzing" || status === "capturing"}
-              onClick={analyzeCurrentFrame}
-              className={`flex-1 py-3 px-4 rounded-lg text-xs font-medium flex items-center justify-center gap-2 transition-colors ${
-                status === "analyzing"
-                  ? "bg-zinc-800 text-zinc-400 cursor-wait"
-                  : "bg-[#c85a32] hover:bg-[#b44f2b] text-white active:scale-[0.99] cursor-pointer"
-              }`}
-            >
-              {status === "analyzing" ? (
-                <>
-                  <Activity className="w-3.5 h-3.5 animate-spin" />
-                  Analyzing gesture...
-                </>
-              ) : (
-                <>
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  Translate Gesture <span className="text-white/60 font-mono text-[10px] ml-1">[Space]</span>
-                </>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={startCamera}
-              title="Reset camera"
-              className="p-3 rounded-lg border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </section>
-
-        {/* Right Section: Live Translation Output & History (5 Cols) */}
-        <section className="lg:col-span-5 flex flex-col gap-6">
-          {/* Active Translation Output */}
-          <div className="flex flex-col gap-3 pb-6 border-b border-zinc-800/80">
-            <div className="flex items-center justify-between text-xs text-zinc-500">
+          {/* Right Column: High-Contrast Trilingual Output Cards with Prominent One-Tap Replay (6 Cols) */}
+          <section className="lg:col-span-6 flex flex-col gap-4">
+            <div className="flex items-center justify-between pb-1 border-b border-zinc-800/80">
               <div className="flex items-center gap-2">
-                <span className="uppercase tracking-wider text-[10px] font-medium text-zinc-400">Current Translation</span>
-                <span className="text-[10px] text-zinc-500 font-mono">({currentResult.cue})</span>
+                <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400">Recognized Translation</span>
+                <span className="text-[11px] font-mono text-[#c85a32]">({currentResult.cue})</span>
               </div>
               <button
                 type="button"
                 onClick={speakCurrentResultAll}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white text-[11px] font-medium transition-colors cursor-pointer"
-                title="Speaks English & Hindi (Click Odia below to speak Odia)"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg border border-zinc-800 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+                title="Play English and Hindi together"
               >
                 <Volume2 className="w-3.5 h-3.5 text-[#c85a32]" />
-                <span>Speak (EN + HI)</span>
+                <span>Play All (EN + HI)</span>
               </button>
             </div>
 
-            {/* Trilingual Output Rows */}
-            <div className="space-y-3 mt-1">
-              {/* English */}
+            {/* High-Contrast Trilingual Output Cards */}
+            <div className="space-y-3.5">
+              {/* English Card */}
               <div
-                onClick={() => replaySingleAudio("en")}
-                className={`p-3 rounded-lg border transition-all flex items-start justify-between gap-3 cursor-pointer group ${
+                className={`p-4 rounded-xl border transition-all flex items-center justify-between gap-4 ${
                   activeSpeechLang === "en"
-                    ? "border-[#c85a32]/60 bg-[#c85a32]/10"
-                    : "border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-900/70 hover:border-zinc-700"
+                    ? "border-[#c85a32] bg-[#c85a32]/10 shadow-md shadow-[#c85a32]/10"
+                    : "border-zinc-800 bg-zinc-900/50 hover:border-zinc-700"
                 }`}
               >
-                <div>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">English</span>
-                    <span className="text-[9px] text-zinc-600 group-hover:text-zinc-400 transition-colors">Click to speak</span>
-                  </div>
-                  <p className="text-base text-zinc-100 font-normal leading-relaxed">{currentResult.en}</p>
+                <div className="flex-1">
+                  <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500 block mb-1">
+                    English
+                  </span>
+                  <p className="text-xl font-medium text-white tracking-tight leading-snug">
+                    {currentResult.en}
+                  </p>
                 </div>
                 <button
                   type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    replaySingleAudio("en");
-                  }}
-                  title="Speak English"
-                  className="p-1.5 text-zinc-400 group-hover:text-[#c85a32] transition-colors shrink-0 mt-0.5"
+                  onClick={() => replaySingleAudio("en")}
+                  title="One-Tap English Audio Replay"
+                  className={`p-3 rounded-xl border transition-all shrink-0 cursor-pointer ${
+                    activeSpeechLang === "en"
+                      ? "bg-[#c85a32] text-white border-[#c85a32] animate-pulse"
+                      : "bg-zinc-800/80 hover:bg-zinc-700 border-zinc-700 text-zinc-200 hover:text-white"
+                  }`}
                 >
-                  <Volume2 className={`w-4 h-4 ${activeSpeechLang === "en" ? "text-[#c85a32]" : ""}`} />
+                  <Volume2 className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* Hindi */}
+              {/* Hindi Card */}
               <div
-                onClick={() => replaySingleAudio("hi")}
-                className={`p-3 rounded-lg border transition-all flex items-start justify-between gap-3 cursor-pointer group ${
+                className={`p-4 rounded-xl border transition-all flex items-center justify-between gap-4 ${
                   activeSpeechLang === "hi"
-                    ? "border-[#c85a32]/60 bg-[#c85a32]/10"
-                    : "border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-900/70 hover:border-zinc-700"
+                    ? "border-[#c85a32] bg-[#c85a32]/10 shadow-md shadow-[#c85a32]/10"
+                    : "border-zinc-800 bg-zinc-900/50 hover:border-zinc-700"
                 }`}
               >
-                <div>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">हिन्दी</span>
-                    <span className="text-[9px] text-zinc-600 group-hover:text-zinc-400 transition-colors">Click to speak</span>
-                  </div>
-                  <p className="text-base text-zinc-100 font-normal leading-relaxed">{currentResult.hi}</p>
+                <div className="flex-1">
+                  <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500 block mb-1">
+                    हिन्दी (Hindi)
+                  </span>
+                  <p className="text-xl font-normal text-white tracking-tight leading-snug">
+                    {currentResult.hi}
+                  </p>
                 </div>
                 <button
                   type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    replaySingleAudio("hi");
-                  }}
-                  title="Speak Hindi"
-                  className="p-1.5 text-zinc-400 group-hover:text-[#c85a32] transition-colors shrink-0 mt-0.5"
+                  onClick={() => replaySingleAudio("hi")}
+                  title="One-Tap Hindi Audio Replay"
+                  className={`p-3 rounded-xl border transition-all shrink-0 cursor-pointer ${
+                    activeSpeechLang === "hi"
+                      ? "bg-[#c85a32] text-white border-[#c85a32] animate-pulse"
+                      : "bg-zinc-800/80 hover:bg-zinc-700 border-zinc-700 text-zinc-200 hover:text-white"
+                  }`}
                 >
-                  <Volume2 className={`w-4 h-4 ${activeSpeechLang === "hi" ? "text-[#c85a32]" : ""}`} />
+                  <Volume2 className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* Odia */}
+              {/* Odia Card */}
               <div
-                onClick={() => replaySingleAudio("or")}
-                className={`p-3 rounded-lg border transition-all flex items-start justify-between gap-3 cursor-pointer group ${
+                className={`p-4 rounded-xl border transition-all flex items-center justify-between gap-4 ${
                   activeSpeechLang === "or"
-                    ? "border-[#c85a32]/60 bg-[#c85a32]/10"
-                    : "border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-900/70 hover:border-zinc-700"
+                    ? "border-[#c85a32] bg-[#c85a32]/10 shadow-md shadow-[#c85a32]/10"
+                    : "border-zinc-800 bg-zinc-900/50 hover:border-zinc-700"
                 }`}
               >
-                <div>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">ଓଡ଼ିଆ</span>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">
+                      ଓଡ଼ିଆ (Odia)
+                    </span>
                     {quotaExhausted ? (
                       <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-rose-950/70 border border-rose-800 text-rose-300">
                         0 tries left · Fallback Audio
@@ -632,53 +566,102 @@ export default function SilentVoiceApp() {
                     ) : (
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setManualCredits();
-                        }}
-                        title="Click to calibrate remaining tries with your Sarvam dashboard"
+                        onClick={setManualCredits}
+                        title="Click to calibrate remaining tries with Sarvam dashboard"
                         className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-emerald-400 inline-flex items-center gap-1 transition-colors cursor-pointer"
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                         <span>{sarvamCredits} tries left</span>
                       </button>
                     )}
-                    <span className="text-[9px] text-zinc-600 group-hover:text-zinc-400 transition-colors">Click to speak</span>
                   </div>
-                  <p className="text-base text-zinc-100 font-normal leading-relaxed">{currentResult.or}</p>
+                  <p className="text-xl font-normal text-white tracking-tight leading-snug">
+                    {currentResult.or}
+                  </p>
                 </div>
                 <button
                   type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    replaySingleAudio("or");
-                  }}
-                  title="Speak Odia"
-                  className="p-1.5 text-zinc-400 group-hover:text-[#c85a32] transition-colors shrink-0 mt-0.5"
+                  onClick={() => replaySingleAudio("or")}
+                  title="One-Tap Odia Audio Replay (Sarvam AI bulbul:v3)"
+                  className={`p-3 rounded-xl border transition-all shrink-0 cursor-pointer ${
+                    activeSpeechLang === "or"
+                      ? "bg-[#c85a32] text-white border-[#c85a32] animate-pulse"
+                      : "bg-zinc-800/80 hover:bg-zinc-700 border-zinc-700 text-zinc-200 hover:text-white"
+                  }`}
                 >
-                  <Volume2 className={`w-4 h-4 ${activeSpeechLang === "or" ? "text-[#c85a32]" : ""}`} />
+                  <Volume2 className="w-5 h-5" />
                 </button>
               </div>
             </div>
+
+            {/* Recent Detection History */}
+            {history.length > 0 && (
+              <div className="pt-2 text-xs">
+                <div className="flex items-center justify-between text-zinc-500 mb-1.5">
+                  <span className="uppercase tracking-wider text-[10px] font-medium text-zinc-400">Activity Log</span>
+                  <span className="text-[10px] font-mono">{history.length} logged</span>
+                </div>
+                <div className="space-y-1">
+                  {history.map((h, i) => (
+                    <div key={`${h.timestamp}-${i}`} className="flex items-center justify-between py-1 border-b border-zinc-800/40 last:border-0 text-zinc-400 text-xs">
+                      <span className="truncate pr-4">{h.en}</span>
+                      <span className="text-[10px] font-mono text-zinc-600 shrink-0">{h.timestamp}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+
+        {/* Bottom Section: Visual Cue Legend Strip (Project Activate Style) */}
+        <section className="pt-4 border-t border-zinc-800/80 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400">
+                Visual Cue Legend (Project Activate Style)
+              </span>
+              <span className="text-xs text-zinc-600">· Tap any sign below to test</span>
+            </div>
+            <Link href="/sheet" className="text-xs text-[#c85a32] hover:underline font-mono">
+              View Printable Chit ↗
+            </Link>
           </div>
 
-          {/* Activity Timeline */}
-          {history.length > 0 && (
-            <div className="pt-2 text-xs">
-              <div className="flex items-center justify-between text-zinc-500 mb-2">
-                <span className="uppercase tracking-wider text-[10px] font-medium text-zinc-400">Recent History</span>
-                <span className="text-[10px] font-mono">{history.length} events</span>
-              </div>
-              <div className="space-y-1">
-                {history.map((h, i) => (
-                  <div key={`${h.timestamp}-${i}`} className="flex items-center justify-between py-1 text-zinc-400 text-xs">
-                    <span className="truncate pr-4">{h.en}</span>
-                    <span className="text-[10px] font-mono text-zinc-600 shrink-0">{h.timestamp}</span>
+          {/* Horizontal Legend Strip */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+            {GESTURES.map((item) => {
+              const Icon = item.icon;
+              const isSelected = selectedLegendKey === item.key;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => triggerLegendItem(item)}
+                  className={`p-2.5 rounded-xl border text-left transition-all flex flex-col gap-1.5 cursor-pointer ${
+                    isSelected
+                      ? "border-[#c85a32] bg-[#c85a32]/15 shadow-sm"
+                      : "border-zinc-800 bg-zinc-900/40 hover:bg-zinc-800/60 hover:border-zinc-700"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className={isSelected ? "text-[#c85a32]" : "text-zinc-400"}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <span className="text-[10px] font-mono font-semibold text-zinc-400">
+                      {item.name}
+                    </span>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+                  <span className="text-[11px] font-medium text-zinc-200 truncate leading-tight">
+                    {item.cue}
+                  </span>
+                  <span className="text-[10px] text-zinc-500 truncate">
+                    {item.en}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </section>
       </main>
     </div>
