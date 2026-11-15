@@ -130,27 +130,30 @@ export default function SilentVoiceApp() {
       if (data.detected) {
         const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
         setHistory((prev) => [{ ...data, timestamp: timeStr }, ...prev.slice(0, 4)]);
-
-        setStatus("speaking");
-        await speakPhrase(selectedLang, {
-          textEn: data.en,
-          textHi: data.hi,
-          textOr: data.or,
-          phraseKey: data.phraseKey,
-          onStart: (lang) => setActiveSpeechLang(lang),
-          onEnd: () => {
-            setActiveSpeechLang(null);
-            setStatus("ready");
-          },
-        });
-      } else {
-        setStatus("ready");
       }
+      setStatus("ready");
     } catch (err) {
       console.error("Frame analysis error:", err);
       setStatus("ready");
     }
-  }, [captureFrameBase64, selectedLang, status]);
+  }, [captureFrameBase64, status]);
+
+  // Speak all translations for the current result
+  const speakCurrentResultAll = async () => {
+    stopAllSpeech();
+    setStatus("speaking");
+    await speakPhrase(selectedLang, {
+      textEn: currentResult.en,
+      textHi: currentResult.hi,
+      textOr: currentResult.or,
+      phraseKey: currentResult.phraseKey,
+      onStart: (lang) => setActiveSpeechLang(lang),
+      onEnd: () => {
+        setActiveSpeechLang(null);
+        setStatus("ready");
+      },
+    });
+  };
 
   // Quick test demo trigger
   const triggerDemoPhrase = async (item: GestureDefinition) => {
@@ -485,29 +488,47 @@ export default function SilentVoiceApp() {
           {/* Active Translation Output */}
           <div className="flex flex-col gap-3 pb-6 border-b border-zinc-800/80">
             <div className="flex items-center justify-between text-xs text-zinc-500">
-              <span className="uppercase tracking-wider text-[10px] font-medium text-zinc-400">Current Translation</span>
-              <span className="font-mono text-[11px] text-zinc-400">{currentResult.cue}</span>
+              <div className="flex items-center gap-2">
+                <span className="uppercase tracking-wider text-[10px] font-medium text-zinc-400">Current Translation</span>
+                <span className="text-[10px] text-zinc-500 font-mono">({currentResult.cue})</span>
+              </div>
+              <button
+                type="button"
+                onClick={speakCurrentResultAll}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white text-[11px] font-medium transition-colors cursor-pointer"
+                title="Speak in selected language"
+              >
+                <Volume2 className="w-3.5 h-3.5 text-[#c85a32]" />
+                <span>Speak Result</span>
+              </button>
             </div>
 
             {/* Trilingual Output Rows */}
             <div className="space-y-3 mt-1">
               {/* English */}
               <div
-                className={`p-3 rounded-lg border transition-colors flex items-start justify-between gap-3 ${
+                onClick={() => replaySingleAudio("en")}
+                className={`p-3 rounded-lg border transition-all flex items-start justify-between gap-3 cursor-pointer group ${
                   activeSpeechLang === "en"
                     ? "border-[#c85a32]/60 bg-[#c85a32]/10"
-                    : "border-zinc-800/80 bg-zinc-900/40"
+                    : "border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-900/70 hover:border-zinc-700"
                 }`}
               >
                 <div>
-                  <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500 block mb-0.5">English</span>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">English</span>
+                    <span className="text-[9px] text-zinc-600 group-hover:text-zinc-400 transition-colors">Click to speak</span>
+                  </div>
                   <p className="text-base text-zinc-100 font-normal leading-relaxed">{currentResult.en}</p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => replaySingleAudio("en")}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    replaySingleAudio("en");
+                  }}
                   title="Speak English"
-                  className="p-1.5 text-zinc-400 hover:text-[#c85a32] transition-colors shrink-0 mt-0.5"
+                  className="p-1.5 text-zinc-400 group-hover:text-[#c85a32] transition-colors shrink-0 mt-0.5"
                 >
                   <Volume2 className={`w-4 h-4 ${activeSpeechLang === "en" ? "text-[#c85a32]" : ""}`} />
                 </button>
@@ -515,21 +536,28 @@ export default function SilentVoiceApp() {
 
               {/* Hindi */}
               <div
-                className={`p-3 rounded-lg border transition-colors flex items-start justify-between gap-3 ${
+                onClick={() => replaySingleAudio("hi")}
+                className={`p-3 rounded-lg border transition-all flex items-start justify-between gap-3 cursor-pointer group ${
                   activeSpeechLang === "hi"
                     ? "border-[#c85a32]/60 bg-[#c85a32]/10"
-                    : "border-zinc-800/80 bg-zinc-900/40"
+                    : "border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-900/70 hover:border-zinc-700"
                 }`}
               >
                 <div>
-                  <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500 block mb-0.5">हिन्दी</span>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">हिन्दी</span>
+                    <span className="text-[9px] text-zinc-600 group-hover:text-zinc-400 transition-colors">Click to speak</span>
+                  </div>
                   <p className="text-base text-zinc-100 font-normal leading-relaxed">{currentResult.hi}</p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => replaySingleAudio("hi")}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    replaySingleAudio("hi");
+                  }}
                   title="Speak Hindi"
-                  className="p-1.5 text-zinc-400 hover:text-[#c85a32] transition-colors shrink-0 mt-0.5"
+                  className="p-1.5 text-zinc-400 group-hover:text-[#c85a32] transition-colors shrink-0 mt-0.5"
                 >
                   <Volume2 className={`w-4 h-4 ${activeSpeechLang === "hi" ? "text-[#c85a32]" : ""}`} />
                 </button>
@@ -537,21 +565,28 @@ export default function SilentVoiceApp() {
 
               {/* Odia */}
               <div
-                className={`p-3 rounded-lg border transition-colors flex items-start justify-between gap-3 ${
+                onClick={() => replaySingleAudio("or")}
+                className={`p-3 rounded-lg border transition-all flex items-start justify-between gap-3 cursor-pointer group ${
                   activeSpeechLang === "or"
                     ? "border-[#c85a32]/60 bg-[#c85a32]/10"
-                    : "border-zinc-800/80 bg-zinc-900/40"
+                    : "border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-900/70 hover:border-zinc-700"
                 }`}
               >
                 <div>
-                  <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500 block mb-0.5">ଓଡ଼ିଆ</span>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">ଓଡ଼ିଆ</span>
+                    <span className="text-[9px] text-zinc-600 group-hover:text-zinc-400 transition-colors">Click to speak</span>
+                  </div>
                   <p className="text-base text-zinc-100 font-normal leading-relaxed">{currentResult.or}</p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => replaySingleAudio("or")}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    replaySingleAudio("or");
+                  }}
                   title="Speak Odia"
-                  className="p-1.5 text-zinc-400 hover:text-[#c85a32] transition-colors shrink-0 mt-0.5"
+                  className="p-1.5 text-zinc-400 group-hover:text-[#c85a32] transition-colors shrink-0 mt-0.5"
                 >
                   <Volume2 className={`w-4 h-4 ${activeSpeechLang === "or" ? "text-[#c85a32]" : ""}`} />
                 </button>
