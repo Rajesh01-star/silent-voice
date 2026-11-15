@@ -619,18 +619,18 @@ export default function SilentVoiceApp() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400">
-                Visual Cue Legend (Project Activate Style)
+                Visual Cue Legend · Core Quick Signs
               </span>
-              <span className="text-xs text-zinc-600">· Tap any sign below to test</span>
+              <span className="text-xs text-zinc-600">· 50 calibrated signs supported · Tap to test</span>
             </div>
             <Link href="/sheet" className="text-xs text-[#c85a32] hover:underline font-mono">
-              View Printable Chit ↗
+              View All 50 Signs in Chit ↗
             </Link>
           </div>
 
-          {/* Horizontal Legend Strip */}
+          {/* Horizontal Legend Strip (Top 8 Vital Quick Access) */}
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
-            {GESTURES.map((item) => {
+            {GESTURES.slice(0, 8).map((item) => {
               const Icon = item.icon;
               const isSelected = selectedLegendKey === item.key;
               return (
