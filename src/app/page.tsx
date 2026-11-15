@@ -182,6 +182,15 @@ export default function SilentVoiceApp() {
         setStatus("detected");
         const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
         setHistory((prev) => [{ ...data, timestamp: timeStr }, ...prev.slice(0, 4)]);
+
+        // Automatically speak English then Hindi (Odia remains manual on-click)
+        stopAllSpeech();
+        speakPhrase("all", {
+          textEn: data.en,
+          textHi: data.hi,
+          onStart: (lang) => setActiveSpeechLang(lang),
+          onEnd: () => setActiveSpeechLang(null),
+        });
       } else {
         setStatus("ready");
       }
@@ -235,8 +244,11 @@ export default function SilentVoiceApp() {
     const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     setHistory((prev) => [{ ...demoResult, timestamp: timeStr }, ...prev.slice(0, 4)]);
 
-    await speakPhrase("en", {
+    // Auto-speaks English then Hindi; Odia remains on explicit click
+    stopAllSpeech();
+    speakPhrase("all", {
       textEn: item.en,
+      textHi: item.hi,
       onStart: (lang) => setActiveSpeechLang(lang),
       onEnd: () => setActiveSpeechLang(null),
     });
@@ -495,9 +507,14 @@ export default function SilentVoiceApp() {
                 }`}
               >
                 <div className="flex-1">
-                  <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500 block mb-1">
-                    English
-                  </span>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">
+                      English
+                    </span>
+                    <span className="text-[9px] font-mono text-emerald-400/80 bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-800/40">
+                      Auto-Spoken
+                    </span>
+                  </div>
                   <p className="text-xl font-medium text-white tracking-tight leading-snug">
                     {currentResult.en}
                   </p>
@@ -505,7 +522,7 @@ export default function SilentVoiceApp() {
                 <button
                   type="button"
                   onClick={() => replaySingleAudio("en")}
-                  title="One-Tap English Audio Replay"
+                  title="Replay English Audio"
                   className={`p-3 rounded-xl border transition-all shrink-0 cursor-pointer ${
                     activeSpeechLang === "en"
                       ? "bg-[#c85a32] text-white border-[#c85a32] animate-pulse"
@@ -525,9 +542,14 @@ export default function SilentVoiceApp() {
                 }`}
               >
                 <div className="flex-1">
-                  <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500 block mb-1">
-                    हिन्दी (Hindi)
-                  </span>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">
+                      हिन्दी (Hindi)
+                    </span>
+                    <span className="text-[9px] font-mono text-emerald-400/80 bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-800/40">
+                      Auto-Spoken
+                    </span>
+                  </div>
                   <p className="text-xl font-normal text-white tracking-tight leading-snug">
                     {currentResult.hi}
                   </p>
@@ -535,7 +557,7 @@ export default function SilentVoiceApp() {
                 <button
                   type="button"
                   onClick={() => replaySingleAudio("hi")}
-                  title="One-Tap Hindi Audio Replay"
+                  title="Replay Hindi Audio"
                   className={`p-3 rounded-xl border transition-all shrink-0 cursor-pointer ${
                     activeSpeechLang === "hi"
                       ? "bg-[#c85a32] text-white border-[#c85a32] animate-pulse"
@@ -558,6 +580,9 @@ export default function SilentVoiceApp() {
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">
                       ଓଡ଼ିଆ (Odia)
+                    </span>
+                    <span className="text-[9px] font-mono text-amber-400/90 bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-800/40">
+                      Click Button to Speak
                     </span>
                     {quotaExhausted ? (
                       <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-rose-950/70 border border-rose-800 text-rose-300">
@@ -582,14 +607,14 @@ export default function SilentVoiceApp() {
                 <button
                   type="button"
                   onClick={() => replaySingleAudio("or")}
-                  title="One-Tap Odia Audio Replay (Sarvam AI bulbul:v3)"
+                  title="Click to Speak Odia (Sarvam AI bulbul:v3)"
                   className={`p-3 rounded-xl border transition-all shrink-0 cursor-pointer ${
                     activeSpeechLang === "or"
                       ? "bg-[#c85a32] text-white border-[#c85a32] animate-pulse"
-                      : "bg-zinc-800/80 hover:bg-zinc-700 border-zinc-700 text-zinc-200 hover:text-white"
+                      : "bg-[#c85a32]/20 hover:bg-[#c85a32]/30 border-[#c85a32]/50 text-white"
                   }`}
                 >
-                  <Volume2 className="w-5 h-5" />
+                  <Volume2 className="w-5 h-5 text-[#c85a32]" />
                 </button>
               </div>
             </div>
