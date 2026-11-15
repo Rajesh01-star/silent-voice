@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import Link from "next/link";
 import {
   Camera,
   CameraOff,
@@ -9,76 +10,12 @@ import {
   Play,
   RotateCcw,
   Activity,
+  FileText,
+  ExternalLink,
 } from "lucide-react";
 import { speakPhrase, stopAllSpeech, SupportedLanguage } from "@/lib/speak";
 import { AnalyzeResult } from "@/app/api/analyze/route";
-
-interface GestureItem {
-  key: "water" | "food" | "pain" | "help" | "yes" | "no" | "thank_you" | "doctor";
-  gesture: string;
-  en: string;
-  hi: string;
-  or: string;
-}
-
-const VOCABULARY: GestureItem[] = [
-  {
-    key: "water",
-    gesture: "Hand near mouth",
-    en: "I need water.",
-    hi: "मुझे पानी चाहिए।",
-    or: "ମୋତେ ପାଣି ଦରକାର।",
-  },
-  {
-    key: "food",
-    gesture: "Hand on stomach",
-    en: "I am hungry.",
-    hi: "मुझे भूख लगी है।",
-    or: "ମୋତେ ଭୋକ ଲାଗୁଛି।",
-  },
-  {
-    key: "pain",
-    gesture: "Eyes closed / grimace",
-    en: "I am in pain.",
-    hi: "मुझे दर्द हो रहा है।",
-    or: "ମୋତେ କଷ୍ଟ ହେଉଛି।",
-  },
-  {
-    key: "help",
-    gesture: "Raised open palm",
-    en: "Please help / Emergency.",
-    hi: "कृपया मदद करें।",
-    or: "ଦୟାକରି ସାହାଯ୍ୟ କରନ୍ତୁ।",
-  },
-  {
-    key: "yes",
-    gesture: "Thumbs up / Nod",
-    en: "Yes.",
-    hi: "हाँ।",
-    or: "ହଁ।",
-  },
-  {
-    key: "no",
-    gesture: "Index finger raised",
-    en: "No.",
-    hi: "नहीं।",
-    or: "ନା।",
-  },
-  {
-    key: "thank_you",
-    gesture: "Hands joined",
-    en: "Thank you.",
-    hi: "धन्यवाद।",
-    or: "ଧନ୍ୟବାଦ।",
-  },
-  {
-    key: "doctor",
-    gesture: "Beckoning gesture",
-    en: "Call the doctor.",
-    hi: "डॉक्टर को बुलाइए।",
-    or: "ଡାକ୍ତରଙ୍କୁ ଡାକନ୍ତୁ।",
-  },
-];
+import { GESTURES, GestureDefinition } from "@/lib/gestures";
 
 export default function SilentVoiceApp() {
   const [selectedLang, setSelectedLang] = useState<SupportedLanguage>("all");
@@ -87,6 +24,7 @@ export default function SilentVoiceApp() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [status, setStatus] = useState<"ready" | "capturing" | "analyzing" | "speaking">("ready");
   const [activeSpeechLang, setActiveSpeechLang] = useState<"en" | "hi" | "or" | null>(null);
+  const [selectedDemoKey, setSelectedDemoKey] = useState<string | null>(null);
 
   const [currentResult, setCurrentResult] = useState<AnalyzeResult>({
     detected: true,
@@ -187,6 +125,7 @@ export default function SilentVoiceApp() {
 
       const data: AnalyzeResult = await res.json();
       setCurrentResult(data);
+      setSelectedDemoKey(null);
 
       if (data.detected) {
         const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -214,11 +153,12 @@ export default function SilentVoiceApp() {
   }, [captureFrameBase64, selectedLang, status]);
 
   // Quick test demo trigger
-  const triggerDemoPhrase = async (item: GestureItem) => {
+  const triggerDemoPhrase = async (item: GestureDefinition) => {
     stopAllSpeech();
+    setSelectedDemoKey(item.key);
     const demoResult: AnalyzeResult = {
       detected: true,
-      cue: item.gesture,
+      cue: `${item.name} (${item.cue})`,
       en: item.en,
       hi: item.hi,
       or: item.or,
@@ -310,7 +250,7 @@ export default function SilentVoiceApp() {
     <div className="flex flex-col min-h-screen bg-[#111113] text-zinc-100 selection:bg-[#c85a32] selection:text-white">
       {/* Top Header */}
       <header className="border-b border-zinc-800/80 px-6 py-3.5">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
           {/* Identity */}
           <div className="flex items-center gap-3">
             <span className="text-sm font-semibold tracking-tight text-zinc-100">Silent Voice</span>
@@ -334,9 +274,19 @@ export default function SilentVoiceApp() {
             </div>
           </div>
 
-          {/* Controls: Clean Segmented Groups */}
-          <div className="flex items-center gap-4">
-            {/* Mode */}
+          {/* Controls: Segmented Groups & Chit Sheet Link */}
+          <div className="flex items-center gap-3.5">
+            {/* Link to /sheet Chit */}
+            <Link
+              href="/sheet"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-xs text-zinc-300 hover:text-white transition-colors"
+            >
+              <FileText className="w-3.5 h-3.5 text-[#c85a32]" />
+              <span>Sign Chit Sheet</span>
+              <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+            </Link>
+
+            {/* Mode Switcher */}
             <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-md p-0.5 text-xs">
               <button
                 type="button"
@@ -397,61 +347,101 @@ export default function SilentVoiceApp() {
       </header>
 
       {/* Main Workspace */}
-      <main className="flex-1 max-w-6xl w-full mx-auto p-6 grid grid-cols-1 md:grid-cols-12 gap-8">
-        {/* Left Column: Camera Viewport (6 Cols) */}
-        <section className="md:col-span-6 flex flex-col gap-4">
-          <div className="relative aspect-[4/3] w-full rounded-xl overflow-hidden bg-zinc-900/60 border border-zinc-800/80 flex items-center justify-center">
-            {cameraActive ? (
-              <video
-                ref={videoRef}
-                playsInline
-                muted
-                autoPlay
-                className="w-full h-full object-cover transform -scale-x-100"
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center p-6 text-center text-zinc-500 gap-2">
-                <CameraOff className="w-6 h-6 stroke-1 text-zinc-500" />
-                <p className="text-xs text-zinc-400 mt-1">
-                  {cameraError || "Camera inactive. Click below to enable."}
-                </p>
+      <main className="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left Section: Camera Viewport + Sign Demos Beside It (7 Cols) */}
+        <section className="lg:col-span-7 flex flex-col gap-4">
+          {/* Dual Frame: Camera Feed on Left + Sign Demos Rail on Right */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+            {/* Camera Viewport (8 cols) */}
+            <div className="md:col-span-8 relative aspect-[4/3] w-full rounded-xl overflow-hidden bg-zinc-900/60 border border-zinc-800/80 flex items-center justify-center">
+              {cameraActive ? (
+                <video
+                  ref={videoRef}
+                  playsInline
+                  muted
+                  autoPlay
+                  className="w-full h-full object-cover transform -scale-x-100"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center p-6 text-center text-zinc-500 gap-2">
+                  <CameraOff className="w-6 h-6 stroke-1 text-zinc-500" />
+                  <p className="text-xs text-zinc-400 mt-1">
+                    {cameraError || "Camera inactive. Click below to enable."}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={startCamera}
+                    className="mt-2 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs rounded transition-colors"
+                  >
+                    Enable Camera
+                  </button>
+                </div>
+              )}
+
+              <canvas ref={canvasRef} className="hidden" />
+
+              {/* Quiet Corner Reticle */}
+              {cameraActive && (
+                <div className="absolute inset-4 pointer-events-none flex flex-col justify-between">
+                  <div className="flex justify-between">
+                    <div className="w-3 h-3 border-t border-l border-zinc-500/40" />
+                    <div className="w-3 h-3 border-t border-r border-zinc-500/40" />
+                  </div>
+                  <div className="flex justify-between">
+                    <div className="w-3 h-3 border-b border-l border-zinc-500/40" />
+                    <div className="w-3 h-3 border-b border-r border-zinc-500/40" />
+                  </div>
+                </div>
+              )}
+
+              {/* Camera Switcher Icon */}
+              {cameraActive && (
                 <button
                   type="button"
-                  onClick={startCamera}
-                  className="mt-2 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs rounded transition-colors"
+                  onClick={stopCamera}
+                  title="Pause camera"
+                  className="absolute top-3 right-3 p-1.5 rounded bg-zinc-950/60 border border-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
                 >
-                  Enable Camera
+                  <Camera className="w-3.5 h-3.5" />
                 </button>
+              )}
+            </div>
+
+            {/* Beside the Camera: Sign Demos Quick Guide (4 cols) */}
+            <div className="md:col-span-4 flex flex-col gap-1.5 max-h-[340px] overflow-y-auto pr-1">
+              <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-zinc-400 pb-1.5 border-b border-zinc-800">
+                <span>Signs To Make</span>
+                <Link href="/sheet" className="text-[#c85a32] hover:underline flex items-center gap-0.5">
+                  Chit ↗
+                </Link>
               </div>
-            )}
 
-            <canvas ref={canvasRef} className="hidden" />
-
-            {/* Quiet Corner Markers */}
-            {cameraActive && (
-              <div className="absolute inset-4 pointer-events-none flex flex-col justify-between">
-                <div className="flex justify-between">
-                  <div className="w-3 h-3 border-t border-l border-zinc-500/40" />
-                  <div className="w-3 h-3 border-t border-r border-zinc-500/40" />
-                </div>
-                <div className="flex justify-between">
-                  <div className="w-3 h-3 border-b border-l border-zinc-500/40" />
-                  <div className="w-3 h-3 border-b border-r border-zinc-500/40" />
-                </div>
-              </div>
-            )}
-
-            {/* Camera Switcher Icon */}
-            {cameraActive && (
-              <button
-                type="button"
-                onClick={stopCamera}
-                title="Pause camera"
-                className="absolute top-3 right-3 p-1.5 rounded bg-zinc-950/60 border border-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
-              >
-                <Camera className="w-3.5 h-3.5" />
-              </button>
-            )}
+              {GESTURES.map((item) => {
+                const Icon = item.icon;
+                const isSelected = selectedDemoKey === item.key;
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => triggerDemoPhrase(item)}
+                    className={`p-2 rounded-lg border text-left transition-all flex items-center gap-2.5 cursor-pointer ${
+                      isSelected
+                        ? "border-[#c85a32] bg-[#c85a32]/10"
+                        : "border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-800/60 hover:border-zinc-700"
+                    }`}
+                  >
+                    <div className={`p-1 rounded shrink-0 ${isSelected ? "text-[#c85a32]" : "text-zinc-400"}`}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div className="truncate flex-1">
+                      <span className="text-xs font-medium text-zinc-200 block truncate">{item.name}</span>
+                      <span className="text-[10px] text-zinc-500 block truncate">{item.cue}</span>
+                    </div>
+                    <Volume2 className="w-3 h-3 text-zinc-600 hover:text-[#c85a32] shrink-0" />
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Trigger Action */}
@@ -490,8 +480,8 @@ export default function SilentVoiceApp() {
           </div>
         </section>
 
-        {/* Right Column: Output & Vocabulary (6 Cols) */}
-        <section className="md:col-span-6 flex flex-col gap-6">
+        {/* Right Section: Live Translation Output & History (5 Cols) */}
+        <section className="lg:col-span-5 flex flex-col gap-6">
           {/* Active Translation Output */}
           <div className="flex flex-col gap-3 pb-6 border-b border-zinc-800/80">
             <div className="flex items-center justify-between text-xs text-zinc-500">
@@ -566,31 +556,6 @@ export default function SilentVoiceApp() {
                   <Volume2 className={`w-4 h-4 ${activeSpeechLang === "or" ? "text-[#c85a32]" : ""}`} />
                 </button>
               </div>
-            </div>
-          </div>
-
-          {/* Clean Reference Table / Quick Simulator */}
-          <div className="flex flex-col gap-2.5">
-            <div className="flex items-center justify-between text-xs text-zinc-500">
-              <span className="uppercase tracking-wider text-[10px] font-medium text-zinc-400">Supported Vocabulary</span>
-              <span className="text-[11px] text-zinc-500">Click to preview audio</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-1.5">
-              {VOCABULARY.map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => triggerDemoPhrase(item)}
-                  className="px-3 py-2 rounded border border-zinc-800/70 bg-zinc-900/30 hover:bg-zinc-800/60 hover:border-zinc-700 text-left transition-colors flex items-center justify-between group cursor-pointer"
-                >
-                  <div className="truncate pr-2">
-                    <span className="text-xs text-zinc-200 block truncate group-hover:text-white">{item.gesture}</span>
-                    <span className="text-[11px] text-zinc-500 block truncate">{item.en}</span>
-                  </div>
-                  <Volume2 className="w-3 h-3 text-zinc-600 group-hover:text-[#c85a32] shrink-0 transition-colors" />
-                </button>
-              ))}
             </div>
           </div>
 
