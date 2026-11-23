@@ -16,6 +16,7 @@ const PHRASE_FALLBACK_MAP: Record<string, string> = {
   "pain": "pain",
   "ସାହାଯ୍ୟ": "help",
   "help": "help",
+  "sos": "help",
   "ହଁ": "yes",
   "yes": "yes",
   "ନା": "no",

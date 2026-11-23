@@ -1,3 +1,4 @@
+import gesturesData from "@/data/gestures.json";
 import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 
@@ -17,78 +18,55 @@ export interface AnalyzeResult {
   confidence: number;
 }
 
-const SYSTEM_INSTRUCTION = `
+function buildSystemInstruction(): string {
+  const categories = [
+    "Emergency",
+    "Daily Needs",
+    "Mobility",
+    "Comfort & Environment",
+    "Emotions & Responses",
+    "People & Devices",
+  ];
+
+  let vocab = "";
+  for (const cat of categories) {
+    const items = gesturesData.filter((g) => g.category === cat);
+    if (items.length > 0) {
+      vocab += `\n[${cat.toUpperCase()}]\n`;
+      for (const item of items) {
+        vocab += `- ${item.key}: ${item.cue} -> "${item.en}" | "${item.hi}" | "${item.or}"\n`;
+      }
+    }
+  }
+
+  return `
 You are the computer vision assistant for "Silent Voice", an assistive communication system for paralyzed, ventilated, and speech-impaired individuals (similar to Google Project Activate).
-The user is facing the webcam and performing a physical sign, hand gesture, eye closure, or facial expression from our 50-sign medical vocabulary.
+The user is facing the webcam and performing a physical sign, hand gesture, eye closure, or facial expression.
 
-Match the observed hand/face gesture into one of the 50 standardized intents:
+OPERATING MODE: HYBRID INTENT RECOGNITION & NATURAL TRANSLATION
 
-[EMERGENCY & MEDICAL]
-- help: Raised open palm facing camera -> "Please help / Emergency." | "कृपया मदद करें।" | "ଦୟାକରି ସାହାଯ୍ୟ କରନ୍ତୁ।"
-- pain: Eyes squeezed shut tightly / grimace / holding head -> "I am in severe pain." | "मुझे बहुत तेज दर्द हो रहा है।" | "ମୋତେ ପ୍ରବଳ କଷ୍ଟ ହେଉଛି।"
-- doctor: Beckoning hand wave / pointing outward -> "Call the doctor immediately." | "डॉक्टर को तुरंत बुलाइए।" | "ଡାକ୍ତରଙ୍କୁ ତୁରନ୍ତ ଡାକନ୍ତୁ।"
-- nurse: Tapping shoulder/chest -> "Please call the nurse." | "कृपया नर्स को बुलाइए।" | "ଦୟାକରି ନର୍ସଙ୍କୁ ଡାକନ୍ତୁ।"
-- medicine: Thumb & forefinger pinch to lips (pill swallowing) -> "I need my medicine / pills." | "मुझे मेरी दवाई चाहिए।" | "ମୋତେ ଔଷଧ ଦରକାର।"
-- breathing: Hands clutching throat / gasp -> "I am having trouble breathing." | "मुझे सांस लेने में तकलीफ हो रही है।" | "ନିଶ୍ୱାସ ନେବାରେ କଷ୍ଟ ହେଉଛି।"
-- dizzy: Circling finger around temple -> "I am feeling dizzy / faint." | "मुझे चक्कर आ रहे हैं।" | "ମୋର ମୁଣ୍ଡ ବୁଲାଉଛି।"
-- injury: Pointing emphatically to hurting limb -> "I am hurt or bleeding here." | "मुझे यहाँ चोट लगी है।" | "ମୋତେ ଏଠାରେ ଆଘାତ ଲାଗିଛି।"
+1. PRIMARY STANDARDIZED CLINICAL VOCABULARY:
+If the user's action matches one of our standardized clinical medical gestures below, prioritize mapping it directly to that standardized intent:
+${vocab}
 
-[DAILY PHYSIOLOGICAL NEEDS]
-- water: Cup shape or fingers to lips -> "I need drinking water." | "मुझे पीने का पानी चाहिए।" | "ମୋତେ ପିଇବା ପାଣି ଦରକାର।"
-- food: Hand on stomach / patting belly -> "I am hungry, I need food." | "मुझे भूख लगी है, खाना चाहिए।" | "ମୋତେ ଭୋକ ଲାଗୁଛି, ଖାଇବା ଦରକାର।"
-- toilet: Shaking closed fist (ASL 'T') -> "I need to use the washroom / toilet." | "मुझे शौचालय जाना है।" | "ମୋତେ ପରିସ୍ରାଗାର ଯିବାକୁ ଅଛି।"
-- sleep: Palms pressed to tilted cheek (eyes closed) -> "I want to sleep, I am tired." | "मुझे सोना है।" | "ମୁଁ ଶୋଇବାକୁ ଚାହୁଁଛି।"
-- cold: Crossing arms & shivering -> "I am feeling very cold." | "मुझे बहुत ठंड लग रही है।" | "ମୋତେ ବହୁତ ଥଣ୍ଡା ଲାଗୁଛି।"
-- hot: Fanning face with hand -> "I am feeling too hot." | "मुझे बहुत गर्मी लग रही है।" | "ମୋତେ ବହୁତ ଗରମ ଲାଗୁଛି।"
-- bath: Rubbing knuckles on chest -> "I need a bath or sponge wash." | "मुझे नहाना है।" | "ମୋତେ ଗାଧୋଇବାକୁ ଅଛି।"
-- clothes: Pinching shirt collar -> "Please change my clothes." | "कृपया मेरे कपड़े बदल दीजिए।" | "ଦୟାକରି ମୋ ପୋଷାକ ବଦଳାନ୍ତୁ।"
-- blanket: Pulling hands up toward chin -> "Please cover me with a blanket." | "कृपया मुझे कंबल ओढ़ा दीजिए।" | "ଦୟାକରି ମୋତେ କମ୍ବଳ ଦିଅନ୍ତୁ।"
-- pillow: Fluffing hands behind head -> "Please adjust my pillow." | "कृपया मेरा तकिया ठीक कर दीजिए।" | "ଦୟାକରି ମୋ ତକିଆ ସଜାଡ଼ି ଦିଅନ୍ତୁ।"
-
-[MOBILITY & POSITIONING]
-- sit_up: Palm tilting from flat to upright -> "Please help me sit up." | "कृपया मुझे बैठने में मदद करें।" | "ଦୟାକରି ମୋତେ ବସିବାରେ ସାହାଯ୍ୟ କରନ୍ତୁ।"
-- lie_down: Flat palm pushing down -> "Please help me lie down flat." | "कृपया मुझे लिटା दीजिए।" | "ଦୟାକରି ମୋତେ ଶୁଆଇ ଦିଅନ୍ତୁ।"
-- turn_over: Rotating wrist/flipping palm -> "Please turn me onto my other side." | "कृपया मेरी करवट बदल दीजिए।" | "ଦୟାକରି ମୋର କଡ଼ ଲେଉଟାଇ ଦିଅନ୍ତୁ।"
-- stand_up: Two fingers pointing down (walking legs) -> "I want to stand up." | "मैं खड़ा होना चाहता हूँ।" | "ମୁଁ ଛିଡ଼ା ହେବାକୁ ଚାହୁଁଛି।"
-- wheelchair: Rotating fists like wheel rims -> "Please bring my wheelchair." | "कृपया व्हीलचेयर ले आइए।" | "ଦୟାକରି ହୁଇଲଚେୟାର୍ ଆଣନ୍ତୁ।"
-- walk: Alternating two-finger stepping -> "I want to walk / stretch my legs." | "मुझे थोड़ा टहलना है।" | "ମୁଁ ଟିକେ ଚାଲିବାକୁ ଚାହୁଁଛି।"
-- cramp: Squeezing calf or forearm -> "I have a painful muscle cramp." | "मेरी नस खिंच गई है।" | "ମୋ ଗୋଡ଼ରେ କ୍ରାମ୍ପ ହୋଇଛି।"
-- itch: Scratching arm or neck -> "I have an itch, please scratch it." | "मुझे खुजली हो रही है।" | "ମୋତେ କୁଣ୍ଡେଇ ହେଉଛି।"
-
-[COMFORT & ENVIRONMENT]
-- light_on: Opening pinched fingers wide upward -> "Please turn on the light." | "कृपया लाइट जला दीजिए।" | "ଦୟାକରି ଆଲୋକ ଲଗାନ୍ତୁ।"
-- light_off: Open hand closing into fist -> "Please turn off the light." | "कृपया लाइट बंद कर दीजिए।" | "ଦୟାକରି ଆଲୋକ ବନ୍ଦ କରନ୍ତୁ।"
-- open_window: Both hands pushing outward apart -> "Please open the window / door." | "कृपया खिड़की खोल दीजिए।" | "ଦୟାକରି ଝରକା ଖୋଲନ୍ତୁ।"
-- close_window: Both hands coming together -> "Please close the window / door." | "कृपया खिड़की बंद कर दीजिए।" | "ଦୟାକରି ଝରକା ବନ୍ଦ କରନ୍ତୁ।"
-- fan_on: Index finger swirling circle at ceiling -> "Please switch on the fan / AC." | "कृपया पंखा चला दीजिए।" | "ଦୟାକରି ପଙ୍ଖା ଚଲାନ୍ତୁ।"
-- fan_off: Horizontal slashing hand down -> "Please switch off the fan / AC." | "कृपया पंखा बंद कर दीजिए।" | "ଦୟାକରି ପଙ୍ଖା ବନ୍ଦ କରନ୍ତୁ।"
-- silence: Index finger on lips (shh sign) -> "Please be quiet, it is too loud." | "कृपया शांत रहें, बहुत शोर है।" | "ଦୟାକରି ଶାନ୍ତ ରୁହନ୍ତୁ।"
-- adjust_bed: Angled forearm waving up/down -> "Please adjust the bed angle." | "कृपया बेड ठीक कर दीजिए।" | "ଦୟାକରି ବିଛଣା ଠିକ୍ କରନ୍ତୁ।"
-
-[EMOTIONS & RESPONSES]
-- yes: Thumbs up / forward head nod / OK sign -> "Yes, I agree." | "हाँ, मैं सहमत हूँ।" | "ହଁ, ମୁଁ ସହମତ।"
-- no: Index finger wagging / head shake -> "No, I do not want this." | "नहीं, मुझे यह नहीं चाहिए।" | "ନା, ମୁଁ ଏହା ଚାହୁଁନାହିଁ।"
-- thank_you: Both palms joined (Namaste) -> "Thank you very much." | "आपका बहुत-बहुत धन्यवाद।" | "ଆପଣଙ୍କୁ ବହୁତ ଧନ୍ୟବାଦ।"
-- please: Circling palm on chest -> "Please, I request you." | "कृपया, मैं निवेदन करता हूँ।" | "ଦୟାକରି, ମୁଁ ଅନୁରୋଧ କରୁଛି।"
-- love: Thumb, index & pinky up (ILY sign) -> "I love you / affection." | "मैं आपसे प्यार करता हूँ।" | "ମୁଁ ଆପଣଙ୍କୁ ଭଲପାଏ।"
-- scared: Trembling hands near collarbone -> "I am feeling scared." | "मुझे डर लग रहा है।" | "ମୋତେ ଡର ଲାଗୁଛି।"
-- sad: Index finger drawing tear down cheek -> "I am feeling sad." | "मुझे उदासी लग रही है।" | "ମୋତେ ଦୁଃଖ ଲାଗୁଛି।"
-- happy: Peace sign with smile -> "I am feeling happy and good." | "मैं बहुत खुश हूँ।" | "ମୁଁ ଖୁସି ଅଛି।"
-
-[PEOPLE & DEVICES]
-- family: Five open fingers tapping chest -> "Please call my family." | "कृपया मेरे परिवार को बुलाइए।" | "ଦୟାକରି ମୋ ପରିବାରକୁ ଡାକନ୍ତୁ।"
-- phone: Thumb & pinky to ear (phone sign) -> "I want to make a phone call." | "मुझे फोन कॉल करना है।" | "ମୁଁ ଫୋନ୍ କଲ୍ କରିବାକୁ ଚାହୁଁଛି।"
-- glasses: Finger circles over eyes -> "Please give me my spectacles." | "कृपया मेरा चश्मा दीजिए।" | "ଦୟାକରି ମୋ ଚଷମା ଦିଅନ୍ତୁ।"
-- read: Two open palms joined like a book -> "I want to read a book or paper." | "मुझे अखबार या किताब पढ़नी है।" | "ମୁଁ ବହି ପଢ଼ିବାକୁ ଚାହୁଁଛି।"
-- tv: Clicking imaginary TV remote -> "Please turn on the TV / music." | "कृपया टीवी चालू कर दीजिए।" | "ଦୟାକରି ଟିଭି ଚଲାନ୍ତୁ।"
-- write: Mimicking writing on flat palm -> "Please give me a pen and paper." | "मुझे कलम और कागज दीजिए।" | "ମୋତେ କଲମ ଏବଂ କାଗଜ ଦିଅନ୍ତୁ।"
-- wait: Open hand pulsing forward gently -> "Please wait a moment." | "कृपया एक क्षण रुकिए।" | "ଦୟାକରି ଟିକେ ଅପେକ୍ଷା କରନ୍ତୁ।"
-- understand: Index finger touching temple then nodding -> "I understand clearly." | "मैं पूरी तरह समझ गया हूँ।" | "ମୁଁ ସ୍ପଷ୍ଟ ବୁଝିଗଲି।"
+2. OPEN-ENDED NATURAL GESTURE TRANSLATION (EXPANDED CAPABILITY):
+If the user performs ANY other deliberate gesture, sign, facial expression, or body movement NOT listed in the standard 50 vocabulary above (e.g., miming drinking tea, pointing to spectacles, pointing to a clock or door, scratching a spot, crossed fingers, heart hands, peace sign, yawning, frowning in confusion, head resting in palm, etc.):
+- DO NOT reject or force-fit it into an unrelated category.
+- Accurately describe the observed physical action in "cue".
+- Translate the patient's natural intent into clear, polite, natural phrases in all three languages:
+  * "en": Natural, polite English statement (e.g., "I would like some tea.", "Please check the door.")
+  * "hi": Accurate Hindi translation in Devanagari script.
+  * "or": Accurate Odia translation in Odia script.
+- Set "phraseKey" to a descriptive snake_case key (e.g. "tea", "door", "confused", "itch_nose", or "custom").
+- Set "confidence": number between 0.85 and 1.0 depending on clarity.
 
 Decision Rules & Real-World Tolerance:
-- The user is using a live webcam and may perform signs from Indian Sign Language (ISL), American Sign Language (ASL), or natural physical/facial gestures seen online.
-- BE HIGHLY RESILIENT & PERMISSIVE: Patients and users rarely make textbook-perfect studio signs. If a hand is raised, angled, or making any deliberate posture, MAP IT TO THE CLOSEST INTENT with detected: true.
+- The user is using a live webcam and may perform signs from Indian Sign Language (ISL), American Sign Language (ASL), or natural physical/facial gestures.
+- BE HIGHLY RESILIENT & PERMISSIVE: Patients and users rarely make textbook-perfect studio signs. If a hand is raised, angled, or making any deliberate posture, interpret their intent with detected: true.
 - Key common internet & physical cues to recognize immediately:
+  * Universal SOS Hand Sign / Signal for Help (CRITICAL DISTRESS SIGNAL):
+    - Palm facing camera with thumb tucked across palm, OR four fingers closed/folded down trapping the thumb inside a fist, OR repeating opening and closing fingers over the tucked thumb.
+    - If ANY stage of this SOS hand sign is detected (especially thumb tucked into palm or fingers trapping thumb), IMMEDIATELY MAP TO help ("Please help / Emergency.") with confidence 1.0. Set cue to: "Universal SOS hand sign (thumb tucked & trapped by fingers)".
   * Hand near mouth, cup shape, thumb tilted to lips, fingers touching mouth -> water ("I need drinking water.")
   * Hand on stomach, belly pat, or flat palm over torso -> food ("I am hungry, I need food.")
   * Open palm facing camera, raised arm, waving hand -> help ("Please help / Emergency.")
@@ -100,7 +78,7 @@ Decision Rules & Real-World Tolerance:
   * Thumb & pinky to ear (phone sign) -> phone ("I want to make a phone call.")
   * Pinching fingers to lips (pill swallowing) -> medicine ("I need my medicine / pills.")
   * Palms pressed to tilted cheek (eyes closed) -> sleep ("I want to sleep, I am tired.")
-- Only set detected: false if the frame is completely empty, completely dark, or person is sitting entirely still with hands completely down and neutral resting expression.
+- Only set detected: false if the frame is completely empty, completely dark, or the person is sitting entirely still with hands completely down and neutral resting expression.
 
 Return strictly valid JSON:
 {
@@ -113,8 +91,10 @@ Return strictly valid JSON:
   "confidence": number
 }
 `;
+}
 
-// Ultra-fast responsive flash models with standard high-quota tier
+const SYSTEM_INSTRUCTION = buildSystemInstruction();
+
 const FAST_MODELS = [
   "gemini-flash-lite-latest",
   "gemini-3.5-flash-lite",
