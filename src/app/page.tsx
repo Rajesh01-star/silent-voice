@@ -6,10 +6,9 @@ import {
   Camera,
   CameraOff,
   Volume2,
-  VolumeX,
   Play,
   RotateCcw,
-  Activity,
+  Loader2,
   FileText,
   ExternalLink,
 } from "lucide-react";
@@ -24,6 +23,7 @@ export default function SilentVoiceApp() {
   const [status, setStatus] = useState<"ready" | "scanning" | "detected">("ready");
   const [activeSpeechLang, setActiveSpeechLang] = useState<"en" | "hi" | "or" | null>(null);
   const [selectedLegendKey, setSelectedLegendKey] = useState<string | null>(null);
+  const [activeEngine, setActiveEngine] = useState<"mediapipe" | "cloud">("mediapipe");
 
   const [sarvamCredits, setSarvamCredits] = useState<number>(() => {
     if (typeof window !== "undefined") {
@@ -168,13 +168,34 @@ export default function SilentVoiceApp() {
     }
 
     try {
-      const res = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: frameBase64 }),
-      });
+      let data: AnalyzeResult;
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6500);
+        const backendEndpoint = process.env.NEXT_PUBLIC_BACKEND_URL
+          ? `${process.env.NEXT_PUBLIC_BACKEND_URL.replace(/\/$/, "")}/analyze`
+          : "http://localhost:8000/analyze";
+        const res = await fetch(backendEndpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: frameBase64 }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        if (!res.ok) throw new Error("Local engine unavailable");
+        data = await res.json();
+        setActiveEngine("mediapipe");
+      } catch {
+        // Smooth fallback to Next.js API route if Python backend is offline
+        const res = await fetch("/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: frameBase64 }),
+        });
+        data = await res.json();
+        setActiveEngine("cloud");
+      }
 
-      const data: AnalyzeResult = await res.json();
       setCurrentResult(data);
       setSelectedLegendKey(null);
 
@@ -318,6 +339,19 @@ export default function SilentVoiceApp() {
               <ExternalLink className="w-2.5 h-2.5 opacity-60" />
             </Link>
 
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded border border-zinc-800 bg-zinc-900/60 text-xs font-mono">
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  activeEngine === "mediapipe"
+                    ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"
+                    : "bg-amber-400"
+                }`}
+              />
+              <span className="text-zinc-300">
+                {activeEngine === "mediapipe" ? "MediaPipe Vision" : "Cloud Vision"}
+              </span>
+            </div>
+
             <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-md p-0.5 text-xs">
               <button
                 type="button"
@@ -338,15 +372,6 @@ export default function SilentVoiceApp() {
                 Auto (4s)
               </button>
             </div>
-
-            <button
-              type="button"
-              onClick={stopAllSpeech}
-              title="Stop audio"
-              className="p-1.5 text-zinc-500 hover:text-zinc-200 transition-colors"
-            >
-              <VolumeX className="w-4 h-4" />
-            </button>
           </div>
         </div>
       </header>
@@ -454,7 +479,7 @@ export default function SilentVoiceApp() {
               >
                 {status === "scanning" ? (
                   <>
-                    <Activity className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin" />
                     Scanning & Interpreting Gesture...
                   </>
                 ) : (
@@ -476,13 +501,9 @@ export default function SilentVoiceApp() {
             </div>
           </section>
 
-          {/* Right Column: High-Contrast Trilingual Output Cards with Prominent One-Tap Replay (6 Cols) */}
-          <section className="lg:col-span-6 flex flex-col gap-4">
-            <div className="flex items-center justify-between pb-1 border-b border-zinc-800/80">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400">Recognized Translation</span>
-                <span className="text-[11px] font-mono text-[#c85a32]">({currentResult.cue})</span>
-              </div>
+          {/* Right Column: High-Contrast Trilingual Output Cards (6 Cols) */}
+          <section className="lg:col-span-6 flex flex-col gap-3">
+            <div className="flex items-center justify-end">
               <button
                 type="button"
                 onClick={speakCurrentResultAll}
@@ -652,7 +673,7 @@ export default function SilentVoiceApp() {
           </div>
 
           {/* Horizontal Legend Strip (Top 8 Vital Quick Access) */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 items-stretch">
             {GESTURES.slice(0, 8).map((item) => {
               const Icon = item.icon;
               const isSelected = selectedLegendKey === item.key;
@@ -661,26 +682,28 @@ export default function SilentVoiceApp() {
                   key={item.key}
                   type="button"
                   onClick={() => triggerLegendItem(item)}
-                  className={`p-2.5 rounded-xl border text-left transition-all flex flex-col gap-1.5 cursor-pointer ${
+                  className={`h-full min-h-[110px] p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between cursor-pointer ${
                     isSelected
                       ? "border-[#c85a32] bg-[#c85a32]/15 shadow-sm"
                       : "border-zinc-800 bg-zinc-900/40 hover:bg-zinc-800/60 hover:border-zinc-700"
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className={isSelected ? "text-[#c85a32]" : "text-zinc-400"}>
+                  <div className="flex items-start justify-between gap-1.5 mb-1.5">
+                    <div className={`mt-0.5 shrink-0 ${isSelected ? "text-[#c85a32]" : "text-zinc-400"}`}>
                       <Icon className="w-4 h-4" />
                     </div>
-                    <span className="text-[10px] font-mono font-semibold text-zinc-400">
+                    <span className="text-[10px] font-mono font-semibold text-zinc-300 text-right leading-tight">
                       {item.name}
                     </span>
                   </div>
-                  <span className="text-[11px] font-medium text-zinc-200 truncate leading-tight">
-                    {item.cue}
-                  </span>
-                  <span className="text-[10px] text-zinc-500 truncate">
-                    {item.en}
-                  </span>
+                  <div className="flex-1 flex flex-col justify-between gap-1">
+                    <p className="text-[11px] font-medium text-zinc-200 leading-snug break-words">
+                      {item.cue}
+                    </p>
+                    <p className="text-[10px] text-zinc-500 leading-tight pt-1 border-t border-zinc-800/50 break-words">
+                      {item.en}
+                    </p>
+                  </div>
                 </button>
               );
             })}

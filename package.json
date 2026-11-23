@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
+    "backend": "backend/venv/bin/python backend/app.py",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint"
