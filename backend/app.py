@@ -224,6 +224,19 @@ def process_and_crop_image(image_bgr: np.ndarray) -> tuple[np.ndarray, str, bool
     enhanced = cv2.convertScaleAbs(image_bgr, alpha=1.05, beta=5)
     return enhanced, " | ".join(notes) if notes else "Full camera view.", has_landmarks
 
+@app.get("/")
+def root():
+    return {
+        "service": "Silent Voice Vision Engine",
+        "status": "online",
+        "engine": "MediaPipe Tasks + OpenCV + Gemini Flash",
+        "endpoints": {
+            "health": "/health",
+            "docs": "/docs",
+            "analyze": "/analyze"
+        }
+    }
+
 @app.get("/health")
 def health_check():
     return {
