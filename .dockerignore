@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+backend/venv
+__pycache__
+*.pyc
+.env*
+*.md
+Silent_Voice_Science_Project_QA.pdf

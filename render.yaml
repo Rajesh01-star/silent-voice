@@ -1,13 +1,10 @@
 services:
   - type: web
     name: silent-voice-backend
-    runtime: python
+    runtime: docker
+    dockerfilePath: ./Dockerfile
     region: oregon
     plan: free
-    buildCommand: pip install -r backend/requirements.txt
-    startCommand: uvicorn backend.app:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.12.7
       - key: GEMINI_API_KEY
         sync: false
