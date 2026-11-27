@@ -24,6 +24,7 @@ export default function SilentVoiceApp() {
   const [activeSpeechLang, setActiveSpeechLang] = useState<"en" | "hi" | "or" | null>(null);
   const [selectedLegendKey, setSelectedLegendKey] = useState<string | null>(null);
   const [activeEngine, setActiveEngine] = useState<"mediapipe" | "cloud">("mediapipe");
+  const [backendStatus, setBackendStatus] = useState<"checking" | "waking" | "online" | "offline">("checking");
 
   const [sarvamCredits, setSarvamCredits] = useState<number>(() => {
     if (typeof window !== "undefined") {
@@ -170,8 +171,9 @@ export default function SilentVoiceApp() {
     try {
       let data: AnalyzeResult;
       try {
+        const timeoutMs = backendStatus === "online" ? 7000 : 3500;
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6500);
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
         const backendEndpoint = process.env.NEXT_PUBLIC_BACKEND_URL
           ? `${process.env.NEXT_PUBLIC_BACKEND_URL.replace(/\/$/, "")}/analyze`
           : "http://localhost:8000/analyze";
@@ -185,8 +187,9 @@ export default function SilentVoiceApp() {
         if (!res.ok) throw new Error("Local engine unavailable");
         data = await res.json();
         setActiveEngine("mediapipe");
+        setBackendStatus("online");
       } catch {
-        // Smooth fallback to Next.js API route if Python backend is offline
+        // Smooth fallback to Next.js API route if Python backend is offline or still waking
         const res = await fetch("/api/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -318,6 +321,69 @@ export default function SilentVoiceApp() {
     };
   }, [startCamera, stopCamera]);
 
+  // Warm-up & Keep-alive ping for Render backend (prevents Render cold sleep while tab is open)
+  useEffect(() => {
+    const rawUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+    if (!rawUrl) {
+      setBackendStatus("offline");
+      setActiveEngine("cloud");
+      return;
+    }
+
+    const healthUrl = `${rawUrl.replace(/\/$/, "")}/health`;
+    let isMounted = true;
+    let retryTimer: NodeJS.Timeout | null = null;
+
+    const pingBackend = async (isInitial = false) => {
+      if (isInitial) setBackendStatus("waking");
+      try {
+        const controller = new AbortController();
+        // Give Render up to 45s on initial wake-up, or 10s on routine checks
+        const timeoutId = setTimeout(() => controller.abort(), isInitial ? 45000 : 10000);
+        const res = await fetch(healthUrl, {
+          method: "GET",
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          if (isMounted) {
+            setBackendStatus("online");
+            setActiveEngine("mediapipe");
+          }
+        } else {
+          throw new Error("Health check non-200");
+        }
+      } catch {
+        if (isMounted) {
+          if (isInitial) {
+            // Still booting up - retry once in 5s
+            setBackendStatus("waking");
+            retryTimer = setTimeout(() => pingBackend(false), 5000);
+          } else {
+            setBackendStatus("offline");
+            setActiveEngine("cloud");
+          }
+        }
+      }
+    };
+
+    // 1. Initial warm-up ping immediately when user opens page
+    pingBackend(true);
+
+    // 2. Keep-alive ping every 8 minutes so Render free-tier stays awake
+    const keepAliveInterval = setInterval(() => {
+      pingBackend(false);
+    }, 8 * 60 * 1000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(keepAliveInterval);
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+  }, []);
+
   return (
     <div className="flex flex-col min-h-screen bg-[#111113] text-zinc-100 selection:bg-[#c85a32] selection:text-white">
       {/* Top Header */}
@@ -340,16 +406,22 @@ export default function SilentVoiceApp() {
             </Link>
 
             <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded border border-zinc-800 bg-zinc-900/60 text-xs font-mono">
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  activeEngine === "mediapipe"
-                    ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"
-                    : "bg-amber-400"
-                }`}
-              />
-              <span className="text-zinc-300">
-                {activeEngine === "mediapipe" ? "MediaPipe Vision" : "Cloud Vision"}
-              </span>
+              {backendStatus === "waking" ? (
+                <>
+                  <Loader2 className="w-3 h-3 text-amber-400 animate-spin" />
+                  <span className="text-amber-300">Waking Render Engine...</span>
+                </>
+              ) : activeEngine === "mediapipe" && backendStatus === "online" ? (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)] animate-pulse" />
+                  <span className="text-zinc-300">MediaPipe Vision</span>
+                </>
+              ) : (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-amber-400" />
+                  <span className="text-zinc-300">Cloud Vision</span>
+                </>
+              )}
             </div>
 
             <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-md p-0.5 text-xs">
