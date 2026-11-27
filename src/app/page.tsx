@@ -385,51 +385,51 @@ export default function SilentVoiceApp() {
   }, []);
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#111113] text-zinc-100 selection:bg-[#c85a32] selection:text-white">
+    <div className="flex flex-col min-h-screen bg-[#fbfbfa] text-zinc-900 selection:bg-yellow-300 selection:text-zinc-950 font-sans">
       {/* Top Header */}
-      <header className="border-b border-zinc-800/80 px-6 py-3">
+      <header className="border-b border-zinc-200/90 bg-white/80 backdrop-blur-md px-6 py-3.5 sticky top-0 z-20">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold tracking-tight text-zinc-100">Silent Voice</span>
-            <span className="text-zinc-600">/</span>
-            <span className="text-xs text-zinc-400 font-normal">AI Gesture & Speech Assistive Translator</span>
+            <span className="text-sm font-semibold tracking-tight text-zinc-950">Silent Voice</span>
+            <span className="text-zinc-300">/</span>
+            <span className="text-xs text-zinc-500 font-normal">AI Gesture & Speech Assistive Translator</span>
           </div>
 
           <div className="flex items-center gap-3">
             <Link
               href="/sheet"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-xs text-zinc-300 hover:text-white transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 bg-zinc-50 hover:bg-yellow-50/60 hover:border-yellow-300 text-xs text-zinc-700 hover:text-zinc-950 transition-colors font-medium shadow-2xs"
             >
-              <FileText className="w-3.5 h-3.5 text-[#c85a32]" />
+              <FileText className="w-3.5 h-3.5 text-yellow-600" />
               <span>Sign Chit Sheet</span>
-              <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+              <ExternalLink className="w-2.5 h-2.5 opacity-50" />
             </Link>
 
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded border border-zinc-800 bg-zinc-900/60 text-xs font-mono">
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono">
               {backendStatus === "waking" ? (
-                <>
-                  <Loader2 className="w-3 h-3 text-amber-400 animate-spin" />
-                  <span className="text-amber-300">Waking Render Engine...</span>
-                </>
+                <div className="flex items-center gap-1.5 text-amber-700 bg-amber-50/80 px-2 py-0.5 rounded border border-amber-200/80">
+                  <Loader2 className="w-3 h-3 text-amber-500 animate-spin" />
+                  <span>Waking Render Engine...</span>
+                </div>
               ) : activeEngine === "mediapipe" && backendStatus === "online" ? (
-                <>
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)] animate-pulse" />
-                  <span className="text-zinc-300">MediaPipe Vision</span>
-                </>
+                <div className="flex items-center gap-1.5 text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/70">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
+                  <span>MediaPipe Vision</span>
+                </div>
               ) : (
-                <>
-                  <span className="w-2 h-2 rounded-full bg-amber-400" />
-                  <span className="text-zinc-300">Cloud Vision</span>
-                </>
+                <div className="flex items-center gap-1.5 text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded border border-zinc-200">
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span>Cloud Vision</span>
+                </div>
               )}
             </div>
 
-            <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-md p-0.5 text-xs">
+            <div className="flex items-center bg-zinc-100 border border-zinc-200/90 rounded-lg p-0.5 text-xs">
               <button
                 type="button"
                 onClick={() => setMode("manual")}
-                className={`px-2.5 py-1 rounded text-xs transition-colors ${
-                  mode === "manual" ? "bg-zinc-800 text-zinc-100 font-medium" : "text-zinc-400 hover:text-zinc-200"
+                className={`px-3 py-1 rounded-md text-xs transition-all ${
+                  mode === "manual" ? "bg-white text-zinc-950 font-semibold shadow-xs" : "text-zinc-600 hover:text-zinc-950"
                 }`}
               >
                 Manual [Space]
@@ -437,8 +437,8 @@ export default function SilentVoiceApp() {
               <button
                 type="button"
                 onClick={() => setMode("auto")}
-                className={`px-2.5 py-1 rounded text-xs transition-colors ${
-                  mode === "auto" ? "bg-zinc-800 text-zinc-100 font-medium" : "text-zinc-400 hover:text-zinc-200"
+                className={`px-3 py-1 rounded-md text-xs transition-all ${
+                  mode === "auto" ? "bg-white text-zinc-950 font-semibold shadow-xs" : "text-zinc-600 hover:text-zinc-950"
                 }`}
               >
                 Auto (4s)
@@ -453,7 +453,7 @@ export default function SilentVoiceApp() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left Column: Mirrored Webcam Feed with Status Indicator (6 Cols) */}
           <section className="lg:col-span-6 flex flex-col gap-3">
-            <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden bg-zinc-900/80 border border-zinc-800 flex items-center justify-center shadow-lg">
+            <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden bg-zinc-950 border border-zinc-200 shadow-sm flex items-center justify-center">
               {cameraActive ? (
                 <video
                   ref={videoRef}
@@ -463,15 +463,15 @@ export default function SilentVoiceApp() {
                   className="w-full h-full object-cover transform -scale-x-100"
                 />
               ) : (
-                <div className="flex flex-col items-center justify-center p-6 text-center text-zinc-500 gap-2">
-                  <CameraOff className="w-6 h-6 stroke-1 text-zinc-500" />
-                  <p className="text-xs text-zinc-400 mt-1">
+                <div className="flex flex-col items-center justify-center p-6 text-center text-zinc-400 gap-2">
+                  <CameraOff className="w-6 h-6 stroke-1 text-zinc-400" />
+                  <p className="text-xs text-zinc-500 mt-1">
                     {cameraError || "Camera inactive. Click below to enable."}
                   </p>
                   <button
                     type="button"
                     onClick={startCamera}
-                    className="mt-2 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs rounded transition-colors"
+                    className="mt-2 px-3.5 py-1.5 bg-yellow-400 hover:bg-yellow-300 text-zinc-950 text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
                   >
                     Enable Camera
                   </button>
@@ -485,18 +485,18 @@ export default function SilentVoiceApp() {
                 <div
                   className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border text-xs font-medium transition-all ${
                     status === "scanning"
-                      ? "bg-amber-950/80 border-amber-500/60 text-amber-300 animate-pulse"
+                      ? "bg-yellow-400/90 border-yellow-300 text-zinc-950 shadow-sm"
                       : status === "detected"
-                      ? "bg-emerald-950/80 border-emerald-500/60 text-emerald-300"
-                      : "bg-zinc-950/80 border-zinc-700/60 text-zinc-300"
+                      ? "bg-emerald-600/90 border-emerald-400 text-white shadow-sm"
+                      : "bg-zinc-900/80 border-zinc-700/60 text-zinc-200"
                   }`}
                 >
                   <span
                     className={`w-2 h-2 rounded-full ${
                       status === "scanning"
-                        ? "bg-amber-400 animate-ping"
+                        ? "bg-zinc-950 animate-ping"
                         : status === "detected"
-                        ? "bg-emerald-400"
+                        ? "bg-white"
                         : "bg-zinc-400"
                     }`}
                   />
@@ -514,12 +514,12 @@ export default function SilentVoiceApp() {
               {cameraActive && (
                 <div className="absolute inset-5 pointer-events-none flex flex-col justify-between">
                   <div className="flex justify-between">
-                    <div className="w-5 h-5 border-t-2 border-l-2 border-white/30 rounded-tl-lg" />
-                    <div className="w-5 h-5 border-t-2 border-r-2 border-white/30 rounded-tr-lg" />
+                    <div className="w-5 h-5 border-t-2 border-l-2 border-yellow-400/70 rounded-tl-lg" />
+                    <div className="w-5 h-5 border-t-2 border-r-2 border-yellow-400/70 rounded-tr-lg" />
                   </div>
                   <div className="flex justify-between">
-                    <div className="w-5 h-5 border-b-2 border-l-2 border-white/30 rounded-bl-lg" />
-                    <div className="w-5 h-5 border-b-2 border-r-2 border-white/30 rounded-br-lg" />
+                    <div className="w-5 h-5 border-b-2 border-l-2 border-yellow-400/70 rounded-bl-lg" />
+                    <div className="w-5 h-5 border-b-2 border-r-2 border-yellow-400/70 rounded-br-lg" />
                   </div>
                 </div>
               )}
@@ -530,7 +530,7 @@ export default function SilentVoiceApp() {
                   type="button"
                   onClick={stopCamera}
                   title="Pause camera"
-                  className="absolute top-4 right-4 p-2 rounded-lg bg-zinc-950/70 border border-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors z-10"
+                  className="absolute top-4 right-4 p-2 rounded-lg bg-zinc-900/70 border border-zinc-700 text-zinc-300 hover:text-white transition-colors z-10 cursor-pointer"
                 >
                   <Camera className="w-4 h-4" />
                 </button>
@@ -543,20 +543,20 @@ export default function SilentVoiceApp() {
                 type="button"
                 disabled={!cameraActive || status === "scanning"}
                 onClick={analyzeCurrentFrame}
-                className={`flex-1 py-3.5 px-5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2.5 transition-all shadow-md ${
+                className={`flex-1 py-3.5 px-5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2.5 transition-all shadow-sm ${
                   status === "scanning"
-                    ? "bg-zinc-800 text-zinc-400 cursor-wait border border-zinc-700"
-                    : "bg-[#c85a32] hover:bg-[#b44f2b] text-white active:scale-[0.99] cursor-pointer"
+                    ? "bg-zinc-200 text-zinc-500 cursor-wait border border-zinc-300"
+                    : "bg-yellow-400 hover:bg-yellow-300 active:bg-yellow-500 text-zinc-950 border border-yellow-500/40 active:scale-[0.99] cursor-pointer font-semibold shadow-xs"
                 }`}
               >
                 {status === "scanning" ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin text-zinc-600" />
                     Scanning & Interpreting Gesture...
                   </>
                 ) : (
                   <>
-                    <Play className="w-4 h-4 fill-current" />
+                    <Play className="w-4 h-4 fill-current text-zinc-950" />
                     Capture & Translate Gesture <span className="opacity-60 font-mono text-[11px] ml-1">[Space]</span>
                   </>
                 )}
@@ -566,7 +566,7 @@ export default function SilentVoiceApp() {
                 type="button"
                 onClick={startCamera}
                 title="Restart camera stream"
-                className="p-3.5 rounded-xl border border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
+                className="p-3.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-600 hover:text-zinc-950 transition-colors shadow-2xs cursor-pointer"
               >
                 <RotateCcw className="w-4 h-4" />
               </button>
@@ -579,10 +579,10 @@ export default function SilentVoiceApp() {
               <button
                 type="button"
                 onClick={speakCurrentResultAll}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg border border-zinc-800 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 bg-white hover:bg-yellow-50 hover:border-yellow-300 text-zinc-800 hover:text-yellow-950 text-xs font-medium transition-colors shadow-2xs cursor-pointer"
                 title="Play English and Hindi together"
               >
-                <Volume2 className="w-3.5 h-3.5 text-[#c85a32]" />
+                <Volume2 className="w-3.5 h-3.5 text-yellow-600" />
                 <span>Play All (EN + HI)</span>
               </button>
             </div>
@@ -593,20 +593,20 @@ export default function SilentVoiceApp() {
               <div
                 className={`p-4 rounded-xl border transition-all flex items-center justify-between gap-4 ${
                   activeSpeechLang === "en"
-                    ? "border-[#c85a32] bg-[#c85a32]/10 shadow-md shadow-[#c85a32]/10"
-                    : "border-zinc-800 bg-zinc-900/50 hover:border-zinc-700"
+                    ? "border-yellow-500 bg-yellow-50/80 shadow-md shadow-yellow-500/10"
+                    : "border-zinc-200 bg-white hover:border-zinc-300 shadow-2xs"
                 }`}
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">
+                    <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500 font-semibold">
                       English
                     </span>
-                    <span className="text-[9px] font-mono text-emerald-400/80 bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-800/40">
+                    <span className="text-[9px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
                       Auto-Spoken
                     </span>
                   </div>
-                  <p className="text-xl font-medium text-white tracking-tight leading-snug">
+                  <p className="text-xl font-medium text-zinc-950 tracking-tight leading-snug">
                     {currentResult.en}
                   </p>
                 </div>
@@ -616,8 +616,8 @@ export default function SilentVoiceApp() {
                   title="Replay English Audio"
                   className={`p-3 rounded-xl border transition-all shrink-0 cursor-pointer ${
                     activeSpeechLang === "en"
-                      ? "bg-[#c85a32] text-white border-[#c85a32] animate-pulse"
-                      : "bg-zinc-800/80 hover:bg-zinc-700 border-zinc-700 text-zinc-200 hover:text-white"
+                      ? "bg-yellow-400 text-zinc-950 border-yellow-500 animate-pulse shadow-xs"
+                      : "bg-zinc-50 hover:bg-yellow-50 border-zinc-200 hover:border-yellow-300 text-zinc-700 hover:text-zinc-950"
                   }`}
                 >
                   <Volume2 className="w-5 h-5" />
@@ -628,20 +628,20 @@ export default function SilentVoiceApp() {
               <div
                 className={`p-4 rounded-xl border transition-all flex items-center justify-between gap-4 ${
                   activeSpeechLang === "hi"
-                    ? "border-[#c85a32] bg-[#c85a32]/10 shadow-md shadow-[#c85a32]/10"
-                    : "border-zinc-800 bg-zinc-900/50 hover:border-zinc-700"
+                    ? "border-yellow-500 bg-yellow-50/80 shadow-md shadow-yellow-500/10"
+                    : "border-zinc-200 bg-white hover:border-zinc-300 shadow-2xs"
                 }`}
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">
+                    <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500 font-semibold">
                       हिन्दी (Hindi)
                     </span>
-                    <span className="text-[9px] font-mono text-amber-400/90 bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-800/40">
+                    <span className="text-[9px] font-mono text-yellow-800 bg-yellow-50 px-1.5 py-0.5 rounded border border-yellow-200">
                       Click Button to Speak
                     </span>
                   </div>
-                  <p className="text-xl font-normal text-white tracking-tight leading-snug">
+                  <p className="text-xl font-normal text-zinc-950 tracking-tight leading-snug">
                     {currentResult.hi}
                   </p>
                 </div>
@@ -651,8 +651,8 @@ export default function SilentVoiceApp() {
                   title="Replay Hindi Audio"
                   className={`p-3 rounded-xl border transition-all shrink-0 cursor-pointer ${
                     activeSpeechLang === "hi"
-                      ? "bg-[#c85a32] text-white border-[#c85a32] animate-pulse"
-                      : "bg-zinc-800/80 hover:bg-zinc-700 border-zinc-700 text-zinc-200 hover:text-white"
+                      ? "bg-yellow-400 text-zinc-950 border-yellow-500 animate-pulse shadow-xs"
+                      : "bg-zinc-50 hover:bg-yellow-50 border-zinc-200 hover:border-yellow-300 text-zinc-700 hover:text-zinc-950"
                   }`}
                 >
                   <Volume2 className="w-5 h-5" />
@@ -663,20 +663,20 @@ export default function SilentVoiceApp() {
               <div
                 className={`p-4 rounded-xl border transition-all flex items-center justify-between gap-4 ${
                   activeSpeechLang === "or"
-                    ? "border-[#c85a32] bg-[#c85a32]/10 shadow-md shadow-[#c85a32]/10"
-                    : "border-zinc-800 bg-zinc-900/50 hover:border-zinc-700"
+                    ? "border-yellow-500 bg-yellow-50/80 shadow-md shadow-yellow-500/10"
+                    : "border-zinc-200 bg-white hover:border-zinc-300 shadow-2xs"
                 }`}
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">
+                    <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500 font-semibold">
                       ଓଡ଼ିଆ (Odia)
                     </span>
-                    <span className="text-[9px] font-mono text-amber-400/90 bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-800/40">
+                    <span className="text-[9px] font-mono text-yellow-800 bg-yellow-50 px-1.5 py-0.5 rounded border border-yellow-200">
                       Click Button to Speak
                     </span>
                     {quotaExhausted ? (
-                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-rose-950/70 border border-rose-800 text-rose-300">
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-rose-50 border border-rose-200 text-rose-700">
                         0 tries left · Fallback Audio
                       </span>
                     ) : (
@@ -684,14 +684,14 @@ export default function SilentVoiceApp() {
                         type="button"
                         onClick={setManualCredits}
                         title="Click to calibrate remaining tries with Sarvam dashboard"
-                        className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-emerald-400 inline-flex items-center gap-1 transition-colors cursor-pointer"
+                        className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 text-emerald-700 inline-flex items-center gap-1 transition-colors cursor-pointer"
                       >
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                         <span>{sarvamCredits} tries left</span>
                       </button>
                     )}
                   </div>
-                  <p className="text-xl font-normal text-white tracking-tight leading-snug">
+                  <p className="text-xl font-normal text-zinc-950 tracking-tight leading-snug">
                     {currentResult.or}
                   </p>
                 </div>
@@ -701,11 +701,11 @@ export default function SilentVoiceApp() {
                   title="Click to Speak Odia (Sarvam AI bulbul:v3)"
                   className={`p-3 rounded-xl border transition-all shrink-0 cursor-pointer ${
                     activeSpeechLang === "or"
-                      ? "bg-[#c85a32] text-white border-[#c85a32] animate-pulse"
-                      : "bg-[#c85a32]/20 hover:bg-[#c85a32]/30 border-[#c85a32]/50 text-white"
+                      ? "bg-yellow-400 text-zinc-950 border-yellow-500 animate-pulse shadow-xs"
+                      : "bg-yellow-50 hover:bg-yellow-100 border-yellow-200 text-yellow-900 shadow-2xs"
                   }`}
                 >
-                  <Volume2 className="w-5 h-5 text-[#c85a32]" />
+                  <Volume2 className="w-5 h-5 text-yellow-800" />
                 </button>
               </div>
             </div>
@@ -714,14 +714,14 @@ export default function SilentVoiceApp() {
             {history.length > 0 && (
               <div className="pt-2 text-xs">
                 <div className="flex items-center justify-between text-zinc-500 mb-1.5">
-                  <span className="uppercase tracking-wider text-[10px] font-medium text-zinc-400">Activity Log</span>
-                  <span className="text-[10px] font-mono">{history.length} logged</span>
+                  <span className="uppercase tracking-wider text-[10px] font-semibold text-zinc-600">Activity Log</span>
+                  <span className="text-[10px] font-mono text-zinc-500">{history.length} logged</span>
                 </div>
                 <div className="space-y-1">
                   {history.map((h, i) => (
-                    <div key={`${h.timestamp}-${i}`} className="flex items-center justify-between py-1 border-b border-zinc-800/40 last:border-0 text-zinc-400 text-xs">
-                      <span className="truncate pr-4">{h.en}</span>
-                      <span className="text-[10px] font-mono text-zinc-600 shrink-0">{h.timestamp}</span>
+                    <div key={`${h.timestamp}-${i}`} className="flex items-center justify-between py-1.5 border-b border-zinc-200/60 last:border-0 text-zinc-700 text-xs">
+                      <span className="truncate pr-4 font-medium text-zinc-800">{h.en}</span>
+                      <span className="text-[10px] font-mono text-zinc-400 shrink-0">{h.timestamp}</span>
                     </div>
                   ))}
                 </div>
@@ -731,21 +731,21 @@ export default function SilentVoiceApp() {
         </div>
 
         {/* Bottom Section: Visual Cue Legend Strip (Project Activate Style) */}
-        <section className="pt-4 border-t border-zinc-800/80 flex flex-col gap-3">
+        <section className="pt-5 border-t border-zinc-200 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-600 font-semibold">
                 Visual Cue Legend · Core Quick Signs
               </span>
-              <span className="text-xs text-zinc-600">· 50 calibrated signs supported · Tap to test</span>
+              <span className="text-xs text-zinc-400">· 50 calibrated signs supported · Tap to test</span>
             </div>
-            <Link href="/sheet" className="text-xs text-[#c85a32] hover:underline font-mono">
+            <Link href="/sheet" className="text-xs text-yellow-700 hover:text-yellow-800 hover:underline font-mono font-medium">
               View All 50 Signs in Chit ↗
             </Link>
           </div>
 
           {/* Horizontal Legend Strip (Top 8 Vital Quick Access) */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 items-stretch">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 items-stretch">
             {GESTURES.slice(0, 8).map((item) => {
               const Icon = item.icon;
               const isSelected = selectedLegendKey === item.key;
@@ -756,23 +756,23 @@ export default function SilentVoiceApp() {
                   onClick={() => triggerLegendItem(item)}
                   className={`h-full min-h-[110px] p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between cursor-pointer ${
                     isSelected
-                      ? "border-[#c85a32] bg-[#c85a32]/15 shadow-sm"
-                      : "border-zinc-800 bg-zinc-900/40 hover:bg-zinc-800/60 hover:border-zinc-700"
+                      ? "border-yellow-500 bg-yellow-50/90 shadow-xs ring-1 ring-yellow-400/50"
+                      : "border-zinc-200 bg-white hover:bg-yellow-50/40 hover:border-yellow-300 shadow-2xs"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-1.5 mb-1.5">
-                    <div className={`mt-0.5 shrink-0 ${isSelected ? "text-[#c85a32]" : "text-zinc-400"}`}>
+                    <div className={`mt-0.5 shrink-0 ${isSelected ? "text-yellow-700" : "text-zinc-500"}`}>
                       <Icon className="w-4 h-4" />
                     </div>
-                    <span className="text-[10px] font-mono font-semibold text-zinc-300 text-right leading-tight">
+                    <span className="text-[10px] font-mono font-semibold text-zinc-800 text-right leading-tight">
                       {item.name}
                     </span>
                   </div>
                   <div className="flex-1 flex flex-col justify-between gap-1">
-                    <p className="text-[11px] font-medium text-zinc-200 leading-snug break-words">
+                    <p className="text-[11px] font-medium text-zinc-900 leading-snug break-words">
                       {item.cue}
                     </p>
-                    <p className="text-[10px] text-zinc-500 leading-tight pt-1 border-t border-zinc-800/50 break-words">
+                    <p className="text-[10px] text-zinc-500 leading-tight pt-1 border-t border-zinc-100 break-words">
                       {item.en}
                     </p>
                   </div>
