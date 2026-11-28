@@ -57,9 +57,6 @@ export default function SheetPage() {
         </Link>
 
         <div className="flex items-center gap-3">
-          <span className="text-xs text-zinc-500 font-mono">
-            {filteredGestures.length} of {GESTURES.length} signs shown
-          </span>
           <button
             type="button"
             onClick={handlePrint}
@@ -77,9 +74,6 @@ export default function SheetPage() {
         <header className="mb-6 border-b border-zinc-200 pb-6 print:border-black/30 print:mb-4">
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
             <div>
-              <span className="text-[10px] uppercase font-mono tracking-widest text-yellow-700 print:text-black font-semibold block mb-1">
-                Official Assistive Communication Vocabulary · 50 Calibrated Signs
-              </span>
               <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-950 print:text-black">
                 Silent Voice — 50 Sign Gesture Chit
               </h1>
@@ -87,13 +81,6 @@ export default function SheetPage() {
                 Standardized visual cue reference designed for paralyzed, ventilated, and speech-impaired patients.
                 Each sign translates instantly into English, हिन्दी, and ଓଡ଼ିଆ.
               </p>
-            </div>
-            <div className="text-left md:text-right text-[11px] text-zinc-500 print:text-zinc-600 font-mono shrink-0">
-              <span>Theme: Viksit Bharat</span>
-              <br />
-              <span>AI for Better Life</span>
-              <br />
-              <span className="text-zinc-800 print:text-black font-semibold">50 Verified Signs</span>
             </div>
           </div>
 
@@ -204,26 +191,6 @@ export default function SheetPage() {
           </div>
         )}
 
-        {/* Operator Instructions & Exhibition Manual */}
-        <section className="mt-8 p-4 rounded-xl border border-zinc-200 bg-white print:bg-white print:border-zinc-300 print:p-3 text-xs text-zinc-600 print:text-zinc-800 shadow-2xs">
-          <h2 className="text-xs font-semibold text-zinc-900 print:text-black uppercase tracking-wider mb-2">
-            Exhibition Guidelines & Booth Presentation Tips:
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 print:grid-cols-3 text-[11px] leading-relaxed">
-            <div>
-              <strong className="text-zinc-900 print:text-black block mb-0.5">1. Framing & Positioning:</strong>
-              Position the patient 2 to 3 feet from the webcam so the face, hands, and chest are unobstructed.
-            </div>
-            <div>
-              <strong className="text-zinc-900 print:text-black block mb-0.5">2. Hold & Capture:</strong>
-              Hold the gesture steady for 1 second before pressing Spacebar to avoid camera motion blur.
-            </div>
-            <div>
-              <strong className="text-zinc-900 print:text-black block mb-0.5">3. Trilingual Audio:</strong>
-              English and Hindi speak via zero-latency Web Speech API. Odia speaks via Sarvam AI API with pre-loaded offline sound fallbacks.
-            </div>
-          </div>
-        </section>
 
         {/* Footer */}
         <footer className="mt-6 pt-4 border-t border-zinc-200 print:border-zinc-300 text-center text-[10px] text-zinc-500 print:text-zinc-500 font-mono">
